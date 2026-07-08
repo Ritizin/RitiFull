@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — Entrar</title>
+  <meta name="description" content="Entre na plataforma RitiFull — Email, Conversor, IA e muito mais.">
+  <link rel="stylesheet" href="assets/css/global.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; position: relative; }
+    /* Animated mesh background */
+    .bg-mesh {
+      position: fixed; inset: 0; z-index: 0;
+      background: radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.15) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.12) 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 50%, rgba(236,72,153,0.05) 0%, transparent 70%),
+                  var(--bg-0);
+      background-size: 200% 200%;
+      animation: gradientShift 8s ease infinite;
+    }
+    /* Grid lines */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at 50% 50%, black 40%, transparent 80%);
+    }
+    /* Particles */
+    .particles { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+    .particle {
+      position: absolute; bottom: -20px;
+      width: 4px; height: 4px;
+      background: var(--accent-purple);
+      border-radius: 50%;
+      animation: particleFloat linear infinite;
+      opacity: 0;
+    }
+    /* Login card */
+    .login-wrapper { position: relative; z-index: 10; width: 100%; max-width: 420px; padding: 20px; }
+    .login-card {
+      background: rgba(17,17,24,0.85);
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: var(--radius-xl);
+      padding: 48px 40px 40px;
+      backdrop-filter: blur(40px);
+      box-shadow: 0 0 60px rgba(124,58,237,0.1), 0 20px 60px rgba(0,0,0,0.5);
+      animation: fadeIn 0.6s ease;
+      animation: borderGlow 4s ease-in-out infinite, fadeIn 0.6s ease;
+    }
+    .login-logo {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      margin-bottom: 36px;
+    }
+    .login-logo-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+      box-shadow: 0 0 30px rgba(124,58,237,0.5), 0 0 60px rgba(6,182,212,0.2);
+      animation: float 3s ease-in-out infinite;
+    }
+    .login-logo-name {
+      font-family: var(--font-display);
+      font-size: 32px; font-weight: 900;
+      background: linear-gradient(135deg, var(--accent-purple-light), var(--accent-cyan-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .login-logo-sub { font-size: 13px; color: var(--text-muted); }
+    .input-icon-wrapper { position: relative; }
+    .input-icon-wrapper .input { padding-left: 44px; }
+    .input-icon {
+      position: absolute; left: 14px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px; pointer-events: none;
+    }
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      border: none; border-radius: var(--radius-md);
+      color: white; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: var(--transition);
+      position: relative; overflow: hidden;
+      margin-top: 8px;
+      letter-spacing: 0.5px;
+    }
+    .login-btn::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s ease;
+    }
+    .login-btn:hover::before { left: 100%; }
+    .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,58,237,0.5); }
+    .login-btn:active { transform: translateY(0); }
+    .login-btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .error-msg {
+      display: none; padding: 12px 16px;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-md); color: #f87171;
+      font-size: 13px; margin-top: 16px;
+    }
+    .error-msg.show { display: flex; align-items: center; gap: 8px; animation: fadeIn 0.3s ease; }
+    .login-footer { text-align: center; margin-top: 28px; font-size: 12px; color: var(--text-muted); }
+    .login-footer span { color: var(--accent-purple-light); }
+    /* Success animation */
+    .success-ripple {
+      position: fixed; inset: 0; z-index: 1000;
+      background: radial-gradient(circle at 50% 50%, rgba(124,58,237,0.6) 0%, transparent 70%);
+      opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
+    }
+    .success-ripple.active { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="bg-grid"></div>
+  <div class="particles" id="particles"></div>
+  <div class="success-ripple" id="successRipple"></div>
+
+  <div class="login-wrapper">
+    <div class="login-card" id="loginCard">
+      <div class="login-logo">
+        <div class="login-logo-icon">⚡</div>
+        <div>
+          <div class="login-logo-name">RitiFull</div>
+          <div class="login-logo-sub">Sua plataforma completa</div>
+        </div>
+      </div>
+
+      <form id="loginForm" autocomplete="off">
+        <div class="form-group">
+          <label class="form-label" for="username">Usuário</label>
+          <div class="input-icon-wrapper">
+            <span class="input-icon">👤</span>
+            <input class="input" type="text" id="username" placeholder="Digite seu usuário" autocomplete="username" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Senha</label>
+          <div class="input-icon-wrapper" style="position:relative">
+            <span class="input-icon">🔒</span>
+            <input class="input" type="password" id="password" placeholder="Digite sua senha" autocomplete="current-password" required style="padding-left:44px;padding-right:44px">
+            <button type="button" id="togglePwd" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:4px;">👁️</button>
+          </div>
+        </div>
+
+        <div class="error-msg" id="errorMsg">
+          <span>❌</span>
+          <span id="errorText">Usuário ou senha inválidos</span>
+        </div>
+
+        <button class="login-btn" type="submit" id="loginBtn">
+          <div class="login-btn-inner" id="loginBtnInner">
+            <span>🚀</span>
+            <span>Entrar</span>
+          </div>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        RitiFull &copy; 2025 — Feito com <span>♥</span> por Ritizin
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script>
+    // === PARTICLES ===
+    const pContainer = document.getElementById('particles');
+    const colors = ['#7c3aed','#06b6d4','#ec4899','#9f5cf7','#22d3ee'];
+    for (let i = 0; i < 25; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.width = p.style.height = (Math.random() * 5 + 2) + 'px';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDuration = (Math.random() * 12 + 8) + 's';
+      p.style.animationDelay = (Math.random() * 8) + 's';
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      pContainer.appendChild(p);
+    }
+
+    // === TOGGLE PASSWORD ===
+    document.getElementById('togglePwd').addEventListener('click', function() {
+      const pwd = document.getElementById('password');
+      if (pwd.type === 'password') { pwd.type = 'text'; this.textContent = '🙈'; }
+      else { pwd.type = 'password'; this.textContent = '👁️'; }
+    });
+
+    // === LOGIN FORM ===
+    const ADMIN_USER = 'Ritizin';
+    const ADMIN_PASS = '46616712';
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const user = document.getElementById('username').value.trim();
+      const pass = document.getElementById('password').value;
+      const btn = document.getElementById('loginBtn');
+      const btnInner = document.getElementById('loginBtnInner');
+      const errorMsg = document.getElementById('errorMsg');
+
+      errorMsg.classList.remove('show');
+      btnInner.innerHTML = '<span class="spinner"></span> Entrando...';
+      btn.disabled = true;
+
+      await new Promise(r => setTimeout(r, 900));
+
+      if (user === ADMIN_USER && pass === ADMIN_PASS) {
+        localStorage.setItem('ritifull_session', JSON.stringify({
+          user: user, role: 'admin', ts: Date.now()
+        }));
+        btnInner.innerHTML = '<span>✅</span> Bem-vindo, ' + user + '!';
+        document.getElementById('successRipple').classList.add('active');
+        setTimeout(() => { window.location.href = 'home/'; }, 1000);
+      } else {
+        btn.disabled = false;
+        btnInner.innerHTML = '<span>🚀</span> Entrar';
+        errorMsg.classList.add('show');
+        document.getElementById('errorText').textContent = 'Usuário ou senha incorretos. Tente novamente.';
+        document.getElementById('loginCard').style.animation = 'shake 0.4s ease';
+        setTimeout(() => { document.getElementById('loginCard').style.animation = ''; }, 400);
+      }
+    });
+
+    // Redirect if already logged in
+    const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+    if (session && (Date.now() - session.ts < 24 * 60 * 60 * 1000)) {
+      window.location.href = 'home/';
+    }
+  </script>
+  <style>
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+  </style>
+</body>
+</html>

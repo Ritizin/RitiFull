@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — IA</title>
+  <meta name="description" content="Chat com IA embutida no RitiFull.">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <style>
+    .chat-layout { display: flex; height: calc(100vh - 73px); }
+    .chat-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 24px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .chat-input-area {
+      padding: 16px 24px; border-top: 1px solid var(--border);
+      background: var(--bg-2); display: flex; gap: 12px; align-items: flex-end;
+    }
+    .chat-textarea {
+      flex: 1; padding: 12px 16px; background: var(--bg-3);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      color: var(--text-primary); font-size: 14px; font-family: var(--font-sans);
+      resize: none; outline: none; max-height: 120px; line-height: 1.5;
+      transition: var(--transition);
+    }
+    .chat-textarea:focus { border-color: var(--accent-purple); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+    .send-btn {
+      width: 44px; height: 44px; border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 18px; transition: var(--transition); flex-shrink: 0;
+      box-shadow: 0 0 15px rgba(124,58,237,0.3);
+    }
+    .send-btn:hover { transform: scale(1.08); box-shadow: 0 0 25px rgba(124,58,237,0.5); }
+    .send-btn:active { transform: scale(0.96); }
+    /* Messages */
+    .msg { display: flex; gap: 12px; animation: fadeIn 0.3s ease; max-width: 85%; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .msg.ai .msg-avatar { background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); }
+    .msg.user .msg-avatar { background: var(--bg-4); border: 1px solid var(--border); }
+    .msg-bubble {
+      padding: 12px 16px; border-radius: 16px;
+      font-size: 14px; line-height: 1.65; max-width: 100%;
+    }
+    .msg.ai .msg-bubble {
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+      color: var(--text-primary);
+    }
+    .msg.user .msg-bubble {
+      background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(6,182,212,0.15));
+      border: 1px solid rgba(124,58,237,0.3);
+      border-top-right-radius: 4px;
+      color: var(--text-primary);
+    }
+    .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+    .msg.user .msg-time { text-align: right; }
+    /* Typing indicator */
+    .typing-dots { display: flex; gap: 4px; padding: 8px 4px; }
+    .typing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-purple); animation: typingBounce 1.2s ease-in-out infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce { 0%,60%,100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-6px); opacity: 1; } }
+    /* Sidebar info */
+    .ai-sidebar {
+      width: 260px; border-left: 1px solid var(--border);
+      background: var(--bg-2); padding: 20px;
+      overflow-y: auto; flex-shrink: 0;
+    }
+    .ai-info-card {
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;
+    }
+    .ai-info-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .ai-topic {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: var(--radius-sm);
+      font-size: 13px; color: var(--text-secondary); cursor: pointer;
+      transition: var(--transition); border: 1px solid transparent;
+    }
+    .ai-topic:hover { background: var(--glass-hover); color: var(--text-primary); border-color: var(--border); }
+    .suggestion-chip {
+      display: inline-block; padding: 5px 12px;
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: var(--radius-full); font-size: 12px;
+      color: var(--text-secondary); cursor: pointer;
+      transition: var(--transition); margin: 3px; white-space: nowrap;
+    }
+    .suggestion-chip:hover { background: rgba(124,58,237,0.15); color: var(--accent-purple-light); border-color: rgba(124,58,237,0.3); }
+    .welcome-msg {
+      text-align: center; padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+    .welcome-msg .ai-icon { font-size: 64px; margin-bottom: 16px; animation: float 3s ease-in-out infinite; }
+    .welcome-msg h2 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .clear-btn { font-size: 12px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); transition: var(--transition); }
+    .clear-btn:hover { background: var(--glass-hover); color: var(--text-primary); }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">⚡</div>
+      <span class="sidebar-logo-text">RitiFull</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <a href="../home/" class="nav-item"><span class="nav-item-icon">🏠</span><span>Home</span></a>
+      <a href="../email/" class="nav-item"><span class="nav-item-icon">📧</span><span>Email Temporário</span></a>
+      <a href="../converter/" class="nav-item"><span class="nav-item-icon">🔄</span><span>Conversor</span></a>
+      <a href="../ia/" class="nav-item active"><span class="nav-item-icon">🤖</span><span>IA</span></a>
+      <a href="../sites/" class="nav-item"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
+      <div class="nav-section-label">Administração</div>
+      <a href="../admin/" class="nav-item"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-badge" onclick="logout()">
+        <div class="user-avatar" id="userAvatar">R</div>
+        <div class="user-info"><div class="user-name" id="userName">Ritizin</div><div class="user-role">Administrador</div></div>
+        <span style="color:var(--text-muted);font-size:18px">↩</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content" style="overflow:hidden">
+    <header class="page-header">
+      <div class="flex items-center gap-3">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1 class="page-title">🤖 IA RitiFull</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="badge badge-green">Online</span>
+        <button class="clear-btn" onclick="clearChat()">🗑️ Limpar conversa</button>
+      </div>
+    </header>
+
+    <div class="chat-layout">
+      <!-- CHAT AREA -->
+      <div class="chat-main">
+        <div class="chat-messages" id="chatMessages">
+          <div class="welcome-msg" id="welcomeMsg">
+            <div class="ai-icon">🤖</div>
+            <h2 class="text-gradient">Olá! Sou a IA RitiFull</h2>
+            <p style="max-width:400px;margin:0 auto 20px;font-size:14px">Posso responder perguntas sobre ciência, história, tecnologia, cultura, esportes e muito mais. Como posso te ajudar?</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
+              <span class="suggestion-chip" onclick="sendSuggestion(this.textContent)">🌍 O que é a Terra?</span>
+              <span class="suggestion-chip" onclick="sendSuggestion(this.textContent)">⚡ O que é eletricidade?</span>
+              <span class="suggestion-chip" onclick="sendSuggestion(this.textContent)">🤖 O que é inteligência artificial?</span>
+              <span class="suggestion-chip" onclick="sendSuggestion(this.textContent)">🚀 Como funciona um foguete?</span>
+              <span class="suggestion-chip" onclick="sendSuggestion(this.textContent)">🧬 O que é DNA?</span>
+              <span class="suggestion-chip" onclick="sendSuggestion(this.textContent)">📱 Quem inventou o iPhone?</span>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <textarea class="chat-textarea" id="chatInput" placeholder="Digite sua pergunta..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" onclick="sendMessage()" title="Enviar">➤</button>
+        </div>
+      </div>
+
+      <!-- AI SIDEBAR -->
+      <div class="ai-sidebar" id="aiSidebar" style="display:none">
+        <div class="ai-info-card">
+          <div class="ai-info-title">📚 Tópicos</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre tecnologia')">💻 Tecnologia</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre ciência')">🔬 Ciência</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre história')">📜 História</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre geografia')">🌍 Geografia</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre esportes')">⚽ Esportes</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre cultura')">🎭 Cultura</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre saúde')">💊 Saúde</div>
+          <div class="ai-topic" onclick="sendSuggestion('Fale sobre matemática')">🔢 Matemática</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // Auth
+  const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+  if (!session || (Date.now() - session.ts > 24*60*60*1000)) window.location.href = '../';
+  else { document.getElementById('userName').textContent = session.user; document.getElementById('userAvatar').textContent = session.user[0].toUpperCase(); }
+  function logout() { if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; } }
+
+  // ============================================
+  // RITI AI ENGINE — Knowledge Base
+  // ============================================
+  const AI = {
+    name: 'RitiAI',
+    context: [],
+    
+    knowledge: [
+      // SAUDAÇÕES
+      { p: ['oi','ola','olá','hey','hi','hello','bom dia','boa tarde','boa noite','e ai','eai','opa','salve'], r: ['Olá! 👋 Como posso te ajudar hoje?', 'Oi! Estou pronto para responder suas perguntas. O que você quer saber?', 'Hey! 😊 Pode perguntar à vontade!', 'Olá! Bem-vindo! Em que posso ajudar?'] },
+      { p: ['tudo bem','tudo bom','como vai','como você está','como ta'], r: ['Estou ótimo, obrigado por perguntar! 😄 E você? Em que posso te ajudar?', 'Tudo funcionando perfeitamente! 🤖 O que você precisa saber?'] },
+      { p: ['obrigado','obrigada','valeu','vlw','thanks','ty'], r: ['De nada! 😊 Fico feliz em ajudar! Tem mais alguma dúvida?', 'Disponha! Se tiver mais perguntas, é só perguntar! 🌟', 'Por nada! É para isso que estou aqui! 🤖'] },
+      { p: ['tchau','xau','até mais','bye','adeus','flw','falou'], r: ['Até logo! 👋 Foi um prazer conversar com você!', 'Tchau! Volte sempre que precisar! 😊', 'Até mais! 🌟'] },
+      
+      // QUEM É VOCÊ
+      { p: ['quem é você','o que você é','você é uma ia','você é robô','como você funciona','o que voce faz','quem te criou','qual seu nome','seu nome'], r: ['Sou a RitiAI, a inteligência artificial embutida no RitiFull! 🤖 Fui criada para responder perguntas sobre ciência, história, tecnologia, cultura e muito mais. Sou uma IA baseada em regras, sem conexão com a internet.', 'Me chamo RitiAI! Sou a IA do RitiFull 🤖. Posso conversar sobre praticamente qualquer assunto — ciência, história, tecnologia, esportes, cultura pop, e muito mais!'] },
+      { p: ['o que você sabe','o que sabe','o que pode','capacidades','habilidades'], r: ['Sei sobre: 🔬 Ciência, 💻 Tecnologia, 📜 História, 🌍 Geografia, ⚽ Esportes, 🎬 Cultura pop, 🧬 Biologia, 🚀 Espaço, 🔢 Matemática, 💊 Saúde, 🎵 Música, 🍕 Gastronomia e muito mais! Pode perguntar!'] },
+      
+      // TECNOLOGIA
+      { p: ['o que é inteligência artificial','ia','inteligencia artificial','machine learning','aprendizado de maquina'], r: ['A Inteligência Artificial (IA) é a simulação de processos de inteligência humana por sistemas computacionais. 🤖 Inclui aprendizado (Machine Learning), raciocínio e autocorreção. O Machine Learning é uma subárea da IA onde máquinas aprendem com dados sem serem explicitamente programadas. Exemplos: reconhecimento facial, carros autônomos, assistentes virtuais como Siri e Google Assistant.'] },
+      { p: ['o que é programação','programar','linguagem de programação','código','programação'], r: ['Programação é o processo de criar instruções para computadores executarem tarefas. 💻 Existem centenas de linguagens de programação: Python (ciência de dados, IA), JavaScript (web), Java (apps Android), C++ (jogos, sistemas), Swift (iOS), entre outras. A programação é base de toda a tecnologia moderna!'] },
+      { p: ['o que é python','python'], r: ['Python é uma linguagem de programação de alto nível criada por Guido van Rossum em 1991. 🐍 É conhecida por sua sintaxe simples e legível. É muito usada em: Ciência de Dados, Machine Learning, Desenvolvimento Web (Django, Flask), Automação e Scripts. É uma das linguagens mais populares do mundo!'] },
+      { p: ['o que é javascript','javascript','js'], r: ['JavaScript (JS) é a linguagem de programação da web! 🌐 Criada em 1995 por Brendan Eich. É executada no navegador e no servidor (Node.js). Permite criar sites dinâmicos e interativos. É a linguagem mais usada no mundo segundo pesquisas do Stack Overflow.'] },
+      { p: ['o que é internet','internet','www','world wide web'], r: ['A Internet é uma rede global de computadores interconectados que se comunicam por protocolos padronizados (TCP/IP). 🌐 Foi criada nos anos 1960 como ARPANET (projeto militar dos EUA). A World Wide Web (WWW) foi inventada por Tim Berners-Lee em 1989, permitindo compartilhamento de documentos com hiperlinks. Hoje conecta bilhões de pessoas!'] },
+      { p: ['o que é blockchain','blockchain','bitcoin','criptomoeda','crypto'], r: ['Blockchain é uma tecnologia de registro distribuído onde transações são armazenadas em blocos encadeados e verificados por consenso. ⛓️ O Bitcoin foi a primeira criptomoeda, criada em 2009 por "Satoshi Nakamoto" (identidade desconhecida). Ethereum introduziu contratos inteligentes. As criptomoedas usam criptografia para segurança.'] },
+      { p: ['quem inventou o iphone','iphone','apple','steve jobs'], r: ['O iPhone foi apresentado por Steve Jobs em 9 de janeiro de 2007! 📱 Foi revolucionário por combinar telefone, iPod e internet em um único dispositivo. A Apple foi cofundada por Steve Jobs, Steve Wozniak e Ronald Wayne em 1976. Steve Jobs é considerado um dos maiores visionários da tecnologia moderna.'] },
+      { p: ['o que é nft','nft'], r: ['NFT (Non-Fungible Token) é um ativo digital único registrado em blockchain. 🎨 Diferente do Bitcoin, cada NFT é único e não pode ser substituído por outro idêntico. São muito usados para arte digital, música, itens de jogos e colecionáveis. Ficaram muito populares entre 2020-2022.'] },
+      { p: ['o que é computador','computador','computação'], r: ['Um computador é uma máquina eletrônica que processa dados seguindo instruções (programas). 💻 O primeiro computador eletrônico foi o ENIAC (1945), pesava 27 toneladas! Os componentes básicos são: CPU (processador), RAM (memória), HD/SSD (armazenamento) e periféricos de entrada/saída. Hoje cabem no bolso como smartphones!'] },
+      
+      // CIÊNCIA
+      { p: ['o que é dna','dna','genoma','gene','genética'], r: ['O DNA (Ácido Desoxirribonucleico) é a molécula que carrega as instruções genéticas de todos os seres vivos! 🧬 Tem a estrutura de dupla hélice, descoberta por Watson e Crick em 1953. Os genes são segmentos de DNA que codificam proteínas. O genoma humano tem cerca de 3 bilhões de pares de bases e ~20.000 genes.'] },
+      { p: ['o que é átomo','átomo','atomo','elétron','próton','nêutron'], r: ['O átomo é a menor unidade de matéria que mantém as propriedades de um elemento químico. ⚛️ É composto por: Prótons e Nêutrons (no núcleo) e Elétrons (orbitando o núcleo). O modelo atômico moderno foi desenvolvido por vários cientistas — Thomson, Rutherford, Bohr e a mecânica quântica. O átomo é 99,9% espaço vazio!'] },
+      { p: ['o que é gravidade','gravidade','força gravitacional','newton'], r: ['A gravidade é uma força fundamental da natureza que atrai corpos com massa entre si. 🍎 Isaac Newton formulou a Lei da Gravitação Universal em 1687, inspirado (segundo a lenda) por uma maçã caindo. Albert Einstein reformulou o conceito em 1915 com a Relatividade Geral, descrevendo a gravidade como curvatura do espaço-tempo. Na Terra, a aceleração gravitacional é ~9,8 m/s².'] },
+      { p: ['o que é luz','luz','velocidade da luz','fotôn','fóton'], r: ['A luz é uma forma de radiação eletromagnética visível ao olho humano. 💡 Viaja a ~300.000 km/s no vácuo — a velocidade mais rápida do universo! É formada por fótons (partículas sem massa). A luz branca é composta por todas as cores do espectro visível (ROYGBIV). Einstein mostrou que nada com massa pode atingir a velocidade da luz.'] },
+      { p: ['o que é evolução','evolução','darwin','seleção natural','charles darwin'], r: ['A Teoria da Evolução foi formulada por Charles Darwin em 1859 no livro "A Origem das Espécies". 🦎 A evolução ocorre pela seleção natural: organismos mais adaptados sobrevivem e reproduzem mais. Os humanos e chimpanzés compartilham ~98,7% do DNA. A evolução é um dos pilares da biologia moderna!'] },
+      { p: ['o que é célula','célula','biologia','organismo'], r: ['A célula é a unidade básica da vida! 🔬 Existem dois tipos: Procariontes (sem núcleo definido, como bactérias) e Eucariontes (com núcleo, como células humanas). O corpo humano tem cerca de 37 trilhões de células. Robert Hooke foi o primeiro a observar células, em 1665, usando um microscópio rudimentar.'] },
+      { p: ['o que é fotossíntese','fotossíntese'], r: ['A fotossíntese é o processo pelo qual plantas, algas e algumas bactérias convertem luz solar em energia química. 🌿 Fórmula: 6CO₂ + 6H₂O + luz → C₆H₁₂O₆ + 6O₂. Produz o oxigênio que respiramos e é base de toda a cadeia alimentar. Ocorre nos cloroplastos, organelas que contêm a clorofila (pigmento verde).'] },
+      { p: ['o que é relatividade','einstein','teoria da relatividade','e=mc2','e=mc²'], r: ['A Teoria da Relatividade foi desenvolvida por Albert Einstein. ⚡ A Relatividade Especial (1905) introduziu a famosa equação E=mc², mostrando que massa e energia são equivalentes. A Relatividade Geral (1915) descreveu a gravidade como curvatura do espaço-tempo. Predições confirmadas: dilatação do tempo, buracos negros e ondas gravitacionais!'] },
+      
+      // ESPAÇO
+      { p: ['o que é buraco negro','buraco negro','black hole'], r: ['Um buraco negro é uma região do espaço com gravidade tão intensa que nem a luz consegue escapar. 🕳️ Formam-se quando estrelas massivas morrem (supernovas) e colapsam. A fronteira é chamada de "horizonte de eventos". Em 2019, o Telescópio Event Horizon capturou a primeira imagem de um buraco negro (M87*, a 55 milhões de anos-luz). No centro da Via Láctea está Sagittarius A*.'] },
+      { p: ['o que é sol','sol','estrela','sistema solar'], r: ['O Sol é a estrela central do nosso sistema solar. ☀️ Tem ~4,6 bilhões de anos e viverá por mais ~5 bilhões. Diâmetro: 1,39 milhões de km (109× a Terra). É composto de 73% hidrogênio, 25% hélio. A energia vem de fusão nuclear no núcleo (15 milhões °C). A luz leva ~8 minutos para chegar à Terra.'] },
+      { p: ['o que é lua','lua'], r: ['A Lua é o único satélite natural da Terra! 🌕 Distância média: 384.400 km. Diâmetro: 3.474 km. Foi formada há ~4,5 bilhões de anos, provavelmente após um impacto gigante. Neil Armstrong e Buzz Aldrin foram os primeiros humanos na Lua (Apollo 11, 1969). A Lua influencia as marés terrestres por gravidade.'] },
+      { p: ['o que é marte','marte','vida em marte','planeta vermelho'], r: ['Marte é o 4º planeta do sistema solar e o mais parecido com a Terra! 🔴 Chamado "Planeta Vermelho" por causa do óxido de ferro na superfície. Tem o maior vulcão do sistema solar (Olympus Mons, 21,9 km de altitude). O rover Perseverance da NASA explora Marte buscando sinais de vida passada. Há planos para missão humana nos anos 2030.'] },
+      { p: ['universo','big bang','expansão do universo'], r: ['O universo surgiu há ~13,8 bilhões de anos com o Big Bang! 🌌 Desde então, expande-se continuamente (acelerado pela energia escura). Contém ~2 trilhões de galáxias. A Via Láctea tem ~400 bilhões de estrelas. A matéria visível é apenas 5% do universo — o restante é matéria escura (27%) e energia escura (68%).'] },
+      
+      // HISTÓRIA
+      { p: ['quem foi napoleão','napoleão','napoleon'], r: ['Napoleão Bonaparte (1769-1821) foi um general e imperador francês. ⚔️ Nasceu na Córsega e ascendeu durante a Revolução Francesa. Foi coroado Imperador em 1804. Conquistou grande parte da Europa. Sua derrota na Batalha de Waterloo (1815) encerrou seu reinado. Reformulou o sistema jurídico com o Código Napoleônico, ainda influente hoje.'] },
+      { p: ['segunda guerra','segunda guerra mundial','2a guerra','ww2','adolf hitler','holocausto','nazismo'], r: ['A Segunda Guerra Mundial (1939-1945) foi o maior conflito da história, envolvendo a maioria das nações do mundo. 🌍 Causou ~70-85 milhões de mortes. O Holocausto resultou no extermínio de ~6 milhões de judeus pelo regime nazista de Hitler. Terminou com a derrota da Alemanha (maio 1945) e do Japão (agosto 1945), após as bombas atômicas em Hiroshima e Nagasaki.'] },
+      { p: ['revolução francesa','revolução industrial'], r: ['A Revolução Francesa (1789-1799) foi um período de radicalismo político que derrubou a monarquia e estabeleceu valores de liberdade, igualdade e fraternidade. 🗽 A Revolução Industrial (1760-1840), iniciada na Inglaterra, transformou a produção artesanal em produção mecânica em massa, criando o capitalismo industrial moderno.'] },
+      { p: ['quem foi cleopatra','cleopatra','egito antigo','faraó'], r: ['Cleópatra VII (69-30 a.C.) foi a última rainha do Egito ptolemaico. 👑 Era inteligente e poliglota (falava 9 idiomas). Teve romances políticos com Júlio César e Marco Antônio. Suicidou-se após a conquista romana do Egito. O Egito Antigo durou ~3.000 anos, criou as pirâmides e desenvolveu escrita hieroglífica.'] },
+      { p: ['segunda guerra','história do brasil','brazil','independência do brasil'], r: ['O Brasil foi colonizado por Portugal a partir de 1500 (Pedro Álvares Cabral). 🇧🇷 A independência foi proclamada por Dom Pedro I em 7 de setembro de 1822. Foi o único país da América do Sul colonizado por Portugal. A abolição da escravidão ocorreu em 1888 (Lei Áurea). A República foi proclamada em 1889.'] },
+      
+      // GEOGRAFIA
+      { p: ['maior país do mundo','russia','brasil maior país'], r: ['A Rússia é o maior país do mundo por área: 17,1 milhões de km². 🗺️ O Brasil é o 5º maior com 8,5 milhões de km² e o maior da América do Sul. O menor país do mundo é o Vaticano, com apenas 0,44 km². A China e Índia são os países mais populosos (cada um com mais de 1,4 bilhão de habitantes).'] },
+      { p: ['capital do brasil','capital','brasília'], r: ['A capital do Brasil é Brasília. 🏛️ Foi inaugurada em 21 de abril de 1960 pelo presidente Juscelino Kubitschek. Antes disso, a capital era Rio de Janeiro. Foi construída do zero no Planalto Central com planejamento de Lúcio Costa e arquitetura de Oscar Niemeyer. É Patrimônio Cultural da Humanidade pela UNESCO.'] },
+      { p: ['continentes','continente','africa','asia','europa','america','oceania'], r: ['A Terra tem 7 continentes: 🌍 Ásia (maior, 44,5 milhões km²), África (2°), América do Norte, América do Sul, Antártida, Europa e Oceania. A Ásia tem a maior população (60% da humanidade). A África é o berço da humanidade (primeiros Homo sapiens surgiram lá). A Antártida não tem população permanente.'] },
+      { p: ['rio amazônico','rio amazonas','amazonia','floresta amazônica'], r: ['O Rio Amazonas é o maior rio do mundo em volume de água, responsável por ~20% de toda a água doce que chega aos oceanos! 🌊 Nasce nos Andes peruanos e deságua no Atlântico. A Floresta Amazônica é o maior bioma florestal tropical do mundo (5,5 milhões de km²) e produz ~20% do oxigênio terrestre.'] },
+      
+      // CULTURA E ENTRETENIMENTO
+      { p: ['harry potter','hogwarts','j.k. rowling'], r: ['Harry Potter é a série de livros criada pela autora britânica J.K. Rowling! ⚡ Conta a história de um jovem bruxo que descobriu seus poderes aos 11 anos. A série tem 7 livros, vendeu +500 milhões de cópias e foi traduzida para 80 idiomas. Os filmes arrecadaram +$7,7 bilhões. Hogwarts é a escola de magia e bruxaria!'] },
+      { p: ['o que é anime','anime','mangá','manga','otaku'], r: ['Anime é uma animação japonesa! 🎌 Originou-se do mangá (quadrinhos japoneses). O Japão é o maior produtor mundial. Os primeiros animes modernos surgiram nos anos 1960. Títulos icônicos: Dragon Ball, Naruto, One Piece, Attack on Titan, Demon Slayer. "Otaku" é o termo para fã entusiasta de anime/mangá no Japão.'] },
+      { p: ['michael jackson','rei do pop','thriller'], r: ['Michael Jackson (1958-2009) foi o "Rei do Pop"! 🎤 Seu álbum "Thriller" (1982) é o mais vendido da história: +66 milhões de cópias. Revolucionou o videoclipe e inventou o moonwalk. Ganhou 13 Grammys. É considerado um dos maiores artistas de todos os tempos.'] },
+      { p: ['beatles','rock','elvis'], r: ['Os Beatles foram uma banda de rock britânica formada em Liverpool (1960). 🎸 John Lennon, Paul McCartney, George Harrison e Ringo Starr. São o grupo musical mais bem-sucedido da história. Lançaram hits atemporais como "Hey Jude", "Let It Be", "Yesterday". Elvis Presley (1935-1977) foi o "Rei do Rock and Roll".'] },
+      { p: ['netflix','streaming','serie','série','filme'], r: ['O streaming revolucionou o entretenimento! 📺 Netflix foi fundada em 1997 como serviço de aluguel de DVDs, migrou para streaming em 2007. Hoje tem +250 milhões de assinantes globais. Concorrentes: Disney+, HBO Max, Amazon Prime, Apple TV+. As séries originais como "Stranger Things" e "The Crown" transformaram a indústria.'] },
+      
+      // ESPORTES
+      { p: ['futebol','copa do mundo','fifa','brasil futebol'], r: ['O futebol é o esporte mais popular do mundo! ⚽ A Copa do Mundo FIFA é o maior evento esportivo global. O Brasil é pentacampeão (1958, 1962, 1970, 1994, 2002) — mais títulos da história! Pelé é considerado o maior jogador de todos os tempos, marcou 1.281 gols na carreira. Lionel Messi e Cristiano Ronaldo dominaram o futebol moderno.'] },
+      { p: ['olimpíadas','jogos olimpicos','olimpics'], r: ['As Olimpíadas são o maior evento esportivo multidisciplinar do mundo! 🏅 Originaram-se na Grécia Antiga (776 a.C.) e foram restauradas em 1896 por Pierre de Coubertin. Acontecem a cada 4 anos (Olimpíadas de Verão e Inverno em anos alternados). O Rio de Janeiro sediou as Olimpíadas em 2016 — primeira vez no Brasil.'] },
+      { p: ['michael jordan','nba','basquete','basketball'], r: ['Michael Jordan é amplamente considerado o maior jogador de basquete da história! 🏀 Jogou pela Chicago Bulls, conquistando 6 títulos da NBA. "Space Jam" imortalizou sua imagem na cultura pop. Stephen Curry, LeBron James e Kobe Bryant são outros ícones da NBA. O basquete foi inventado por James Naismith em 1891.'] },
+      
+      // SAÚDE
+      { p: ['vacina','vacinação','imunidade','imunização'], r: ['As vacinas são uma das maiores conquistas da medicina! 💉 Funcionam apresentando ao sistema imune antígenos inofensivos para que crie anticorpos. A varíola foi erradicada em 1980 graças à vacinação. Edward Jenner criou a primeira vacina (contra varíola) em 1796. As vacinas da COVID-19 (2020-2021) foram desenvolvidas em tempo recorde usando tecnologia mRNA.'] },
+      { p: ['covid','coronavirus','pandemia','covid-19'], r: ['A COVID-19 é causada pelo vírus SARS-CoV-2, identificado em dezembro de 2019 em Wuhan, China. 🦠 A OMS declarou pandemia em março de 2020. Causou mais de 7 milhões de mortes globais (dado de 2023). As vacinas foram desenvolvidas em menos de 1 ano — tempo recorde. A pandemia acelerou o trabalho remoto e a digitalização globalmente.'] },
+      { p: ['vitamina','vitaminas','nutrição','alimentação saudável'], r: ['As vitaminas são micronutrientes essenciais para o corpo! 🥦 As principais são: Vitamina A (visão), B12 (sistema nervoso), C (imunidade, encontrada em frutas cítricas), D (ossos, sintetizada pelo sol), E (antioxidante) e K (coagulação). Uma dieta equilibrada com frutas, verduras, proteínas e grãos integrais fornece a maioria das vitaminas necessárias.'] },
+      
+      // MATEMÁTICA
+      { p: ['o que é pi','pi','número pi','3.14'], r: ['Pi (π) é a relação entre a circunferência de um círculo e seu diâmetro: ≈ 3,14159... 🔢 É um número irracional e transcendente — seus decimais são infinitos e não se repetem! Foi usado pela primeira vez por matematicólogos egípcios e babilônicos. O recordista de memorização de π decorou mais de 100.000 casas decimais!'] },
+      { p: ['números primos','primo','matemática'], r: ['Um número primo é divisível apenas por 1 e por ele mesmo! 🔢 Os primeiros são: 2, 3, 5, 7, 11, 13, 17... O 2 é o único primo par. Existem infinitos números primos (provado por Euclides). Os primos são fundamentais na criptografia moderna — seu produto é fácil de calcular, mas fatorar é muito difícil.'] },
+      { p: ['fibonacci','sequência de fibonacci'], r: ['A Sequência de Fibonacci é: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34... onde cada número é a soma dos dois anteriores. 🌀 Aparece na natureza: espiral de conchas, pétalas de flores, pinhas, galáxias! A razão entre números consecutivos converge para o "Número de Ouro" (φ ≈ 1,618), também chamado de proporção áurea.'] },
+      
+      // CULINÁRIA
+      { p: ['pizza','origem da pizza','italia'], r: ['A pizza é originária de Nápoles, Itália! 🍕 A margherita foi criada em 1889 em homenagem à Rainha Margherita de Saboia — molho vermelho (tomate), mozzarella branca e manjericão verde (cores da bandeira italiana). Hoje a pizza é um dos alimentos mais consumidos no mundo, com centenas de variações regionais!'] },
+      { p: ['café','cafeína','origem do café'], r: ['O café é a bebida mais consumida no mundo depois da água! ☕ Originário da Etiópia, onde pastores notaram cabras ficando mais ativas após comer os frutos. O Brasil é o maior produtor e exportador mundial. A cafeína age bloqueando receptores de adenosina no cérebro, reduzindo a sensação de cansaço.'] },
+      
+      // CLIMA E MEIO AMBIENTE
+      { p: ['aquecimento global','mudanças climáticas','efeito estufa','clima'], r: ['O aquecimento global é o aumento da temperatura média da Terra causado pelo efeito estufa ampliado! 🌡️ Gases como CO₂ e metano aprisionam calor na atmosfera. Desde 1880, a temperatura global subiu ~1,1°C. O Acordo de Paris (2015) estabeleceu meta de limitar o aumento a 1,5°C. Consequências: degelo, elevação do nível do mar, eventos climáticos extremos.'] },
+      
+      // PERGUNTAS DE CÁLCULO
+      { p: ['quanto é','calcul','resultado','soma','produto','divide','multiplicar','vezes','mais','menos','dividido'], r: null }, // handled by math engine
+    ],
+    
+    mathPatterns: [/^[\d\s\+\-\*\/\.\(\)\^%]+$/, /quanto é\s*([\d\s\+\-\*\/\.\(\)\^%]+)/i, /(\d+[\+\-\*\/]\d+)/],
+    
+    fallbacks: [
+      'Hmm, não tenho certeza sobre isso específico, mas posso te ajudar com ciência, história, tecnologia, cultura, esportes e mais! 🤔',
+      'Essa é uma boa pergunta! No momento meu conhecimento sobre isso é limitado. Tente perguntar de outra forma! 💡',
+      'Não encontrei informação específica sobre isso. Tente perguntar sobre: ciência, história, tecnologia, geografia, cultura ou esportes! 🌟',
+      'Interessante! Sobre isso especificamente não tenho dados detalhados. Posso responder sobre muitos outros tópicos! 🤖',
+    ],
+    
+    normalize(text) {
+      return text.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s\+\-\*\/\.\(\)\^%]/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+    },
+    
+    score(normalized, patterns) {
+      let best = 0;
+      for (const p of patterns) {
+        if (normalized.includes(p)) { best = Math.max(best, p.length / normalized.length + 0.5); }
+        const words = normalized.split(' ');
+        const pWords = p.split(' ');
+        let matches = 0;
+        for (const pw of pWords) { if (words.some(w => w.includes(pw) || pw.includes(w))) matches++; }
+        if (matches > 0) best = Math.max(best, matches / pWords.length * 0.7);
+      }
+      return best;
+    },
+    
+    tryMath(input) {
+      const n = input.replace(/[^\d\+\-\*\/\.\(\)\s\^%]/g, '').trim();
+      if (!n || n.length < 1) return null;
+      const expr = input.match(/quanto[eé]\s*([\d\s\+\-\*\/\.\(\)\^%]+)/i);
+      let calc = expr ? expr[1] : n;
+      calc = calc.replace(/\^/g, '**').trim();
+      if (!/[\+\-\*\/\^]/.test(calc)) return null;
+      try {
+        const result = Function('"use strict"; return (' + calc + ')')();
+        if (!isFinite(result)) return null;
+        const rounded = Math.round(result * 1000000) / 1000000;
+        return `🔢 **${calc.replace(/\*\*/g,'^')} = ${rounded}**`;
+      } catch { return null; }
+    },
+    
+    respond(input) {
+      const normalized = this.normalize(input);
+      
+      // Math
+      const mathResult = this.tryMath(input);
+      if (mathResult) return mathResult;
+      
+      // Pattern matching
+      let bestResponse = null, bestScore = 0;
+      
+      for (const item of this.knowledge) {
+        if (!item.r) continue;
+        const s = this.score(normalized, item.p);
+        if (s > bestScore) { bestScore = s; bestResponse = item; }
+      }
+      
+      if (bestScore > 0.15 && bestResponse) {
+        const responses = bestResponse.r;
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      return this.fallbacks[Math.floor(Math.random() * this.fallbacks.length)];
+    }
+  };
+
+  // ============================================
+  // CHAT UI
+  // ============================================
+  let messageCount = 0;
+
+  function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+    addMessage('user', text);
+    input.focus();
+    setTimeout(() => processAI(text), 400);
+  }
+
+  function sendSuggestion(text) {
+    document.getElementById('chatInput').value = text;
+    sendMessage();
+  }
+
+  async function processAI(userText) {
+    const typingId = 'typing-' + Date.now();
+    addTyping(typingId);
+    
+    // Simulate thinking delay
+    const delay = Math.min(500 + userText.length * 8, 2000);
+    await new Promise(r => setTimeout(r, delay));
+    
+    const response = AI.respond(userText);
+    removeTyping(typingId);
+    addMessage('ai', response);
+  }
+
+  function addMessage(role, text) {
+    const welcome = document.getElementById('welcomeMsg');
+    if (welcome) welcome.remove();
+    
+    const container = document.getElementById('chatMessages');
+    const msgEl = document.createElement('div');
+    msgEl.className = `msg ${role}`;
+    messageCount++;
+    
+    const avatar = role === 'ai' ? '🤖' : (session.user[0] || 'U');
+    const time = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    
+    const formattedText = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    
+    msgEl.innerHTML = `
+      <div class="msg-avatar">${avatar}</div>
+      <div>
+        <div class="msg-bubble">${formattedText}</div>
+        <div class="msg-time">${time}</div>
+      </div>
+    `;
+    
+    container.appendChild(msgEl);
+    container.scrollTop = container.scrollHeight;
+    
+    if (messageCount > 0 && window.innerWidth > 1024) {
+      document.getElementById('aiSidebar').style.display = 'block';
+    }
+  }
+
+  function addTyping(id) {
+    const container = document.getElementById('chatMessages');
+    const el = document.createElement('div');
+    el.className = 'msg ai';
+    el.id = id;
+    el.innerHTML = `<div class="msg-avatar">🤖</div><div><div class="msg-bubble"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function removeTyping(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function clearChat() {
+    if (!confirm('Limpar toda a conversa?')) return;
+    document.getElementById('chatMessages').innerHTML = `
+      <div class="welcome-msg" id="welcomeMsg">
+        <div class="ai-icon">🤖</div>
+        <h2 class="text-gradient">Olá! Sou a IA RitiFull</h2>
+        <p style="max-width:400px;margin:0 auto 20px;font-size:14px">Como posso te ajudar?</p>
+      </div>`;
+    messageCount = 0;
+    document.getElementById('aiSidebar').style.display = 'none';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function logout() { if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; } }
+
+  // Initial greeting
+  setTimeout(() => {
+    addMessage('ai', 'Olá! Sou a **RitiAI** 🤖 Posso responder perguntas sobre ciência, história, tecnologia, esportes, cultura e muito mais. O que você quer saber?');
+  }, 500);
+</script>
+</body>
+</html>

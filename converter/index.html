@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — Conversor</title>
+  <meta name="description" content="Converta MP4, imagens e muito mais no RitiFull.">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <style>
+    .converter-tabs { margin-bottom: 28px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+    /* Upload zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      background: var(--glass);
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent-purple);
+      background: rgba(124,58,237,0.05);
+      box-shadow: 0 0 30px rgba(124,58,237,0.1);
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 52px; margin-bottom: 16px; opacity: 0.7; }
+    .drop-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .drop-sub { font-size: 13px; color: var(--text-muted); }
+    /* Progress */
+    .progress-bar { height: 6px; background: var(--bg-4); border-radius: var(--radius-full); overflow: hidden; margin: 16px 0; }
+    .progress-fill { height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); transition: width 0.3s ease; width: 0%; }
+    /* File info */
+    .file-info {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+      margin-top: 16px; animation: fadeIn 0.3s ease;
+    }
+    .file-icon { font-size: 36px; flex-shrink: 0; }
+    .file-meta { flex: 1; min-width: 0; }
+    .file-name { font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-size { font-size: 12px; color: var(--text-muted); }
+    /* Image preview */
+    .img-preview {
+      max-width: 100%; max-height: 300px;
+      border-radius: var(--radius-md); margin-top: 16px;
+      border: 1px solid var(--border);
+      display: none;
+    }
+    /* Result */
+    .result-box {
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3);
+      border-radius: var(--radius-md); padding: 20px;
+      margin-top: 16px; display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .result-box.show { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .result-info { font-size: 14px; color: var(--text-secondary); }
+    .result-name { font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .converter-card {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px;
+    }
+    .converter-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+    .converter-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+    /* ICO size options */
+    .ico-sizes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .ico-size-chip {
+      padding: 5px 12px; border-radius: var(--radius-full);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--border); background: var(--glass);
+      color: var(--text-secondary); transition: var(--transition);
+    }
+    .ico-size-chip.active { background: rgba(124,58,237,0.2); color: var(--accent-purple-light); border-color: rgba(124,58,237,0.4); }
+    .status-area { min-height: 24px; font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+    .status-area.error { color: #f87171; }
+    .status-area.success { color: #34d399; }
+    /* FFmpeg loading */
+    .ffmpeg-status {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-md);
+      font-size: 13px; color: #fbbf24; margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">⚡</div>
+      <span class="sidebar-logo-text">RitiFull</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <a href="../home/" class="nav-item"><span class="nav-item-icon">🏠</span><span>Home</span></a>
+      <a href="../email/" class="nav-item"><span class="nav-item-icon">📧</span><span>Email Temporário</span></a>
+      <a href="../converter/" class="nav-item active"><span class="nav-item-icon">🔄</span><span>Conversor</span></a>
+      <a href="../ia/" class="nav-item"><span class="nav-item-icon">🤖</span><span>IA</span></a>
+      <a href="../sites/" class="nav-item"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
+      <div class="nav-section-label">Administração</div>
+      <a href="../admin/" class="nav-item"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-badge" onclick="logout()">
+        <div class="user-avatar" id="userAvatar">R</div>
+        <div class="user-info"><div class="user-name" id="userName">Ritizin</div><div class="user-role">Administrador</div></div>
+        <span style="color:var(--text-muted);font-size:18px">↩</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <header class="page-header">
+      <div class="flex items-center gap-3">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1 class="page-title">🔄 Conversor</h1>
+      </div>
+      <span class="badge badge-purple">Processamento Local</span>
+    </header>
+
+    <div class="page-content">
+      <!-- TABS -->
+      <div class="converter-tabs">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('mp4')" id="tab-mp4">🎵 MP4 → MP3</button>
+          <button class="tab" onclick="switchTab('jpg2png')" id="tab-jpg2png">🖼️ JPG → PNG</button>
+          <button class="tab" onclick="switchTab('webp2jpg')" id="tab-webp2jpg">🔵 WebP → JPG</button>
+          <button class="tab" onclick="switchTab('ico')" id="tab-ico">🖱️ IMG → ICO</button>
+        </div>
+      </div>
+
+      <!-- MP4 TO MP3 -->
+      <div class="tab-content active" id="content-mp4">
+        <div class="converter-card">
+          <div class="converter-title">🎵 Converter MP4 → MP3</div>
+          <div class="converter-desc">Extraia o áudio de vídeos MP4 e salve como MP3. Processamento 100% no navegador usando FFmpeg WebAssembly.</div>
+
+          <div class="ffmpeg-status" id="ffmpegStatus">
+            <span class="spinner"></span>
+            <span>Carregando FFmpeg WebAssembly... Aguarde.</span>
+          </div>
+
+          <div class="drop-zone" id="dropMp4" ondragover="handleDragOver(event,'dropMp4')" ondragleave="handleDragLeave('dropMp4')" ondrop="handleDrop(event,'mp4Input')">
+            <input type="file" id="mp4Input" accept="video/mp4,.mp4" onchange="handleMp4(event)">
+            <div class="drop-icon">🎬</div>
+            <div class="drop-title">Arraste o MP4 aqui</div>
+            <div class="drop-sub">ou clique para selecionar • Máx 500MB</div>
+          </div>
+
+          <div id="mp4FileInfo" style="display:none" class="file-info">
+            <span class="file-icon">🎬</span>
+            <div class="file-meta">
+              <div class="file-name" id="mp4FileName">arquivo.mp4</div>
+              <div class="file-size" id="mp4FileSize">0 MB</div>
+            </div>
+          </div>
+
+          <div class="progress-bar" id="mp4Progress" style="display:none">
+            <div class="progress-fill" id="mp4ProgressFill"></div>
+          </div>
+
+          <div class="status-area" id="mp4Status"></div>
+
+          <button class="btn btn-primary" id="convertMp4Btn" style="margin-top:16px;display:none" onclick="convertMp4()">
+            🎵 Converter para MP3
+          </button>
+
+          <div class="result-box" id="mp4Result">
+            <div class="result-info">
+              <div class="result-name" id="mp4ResultName">audio.mp3</div>
+              <div>Conversão concluída! 🎉</div>
+            </div>
+            <a class="btn btn-success" id="mp4Download" download>⬇️ Baixar MP3</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- JPG TO PNG -->
+      <div class="tab-content" id="content-jpg2png">
+        <div class="converter-card">
+          <div class="converter-title">🖼️ Converter JPG → PNG</div>
+          <div class="converter-desc">Converta imagens JPG/JPEG para formato PNG com fundo transparente suportado. Sem perda de qualidade.</div>
+          <div class="drop-zone" id="dropJpg2png" ondragover="handleDragOver(event,'dropJpg2png')" ondragleave="handleDragLeave('dropJpg2png')" ondrop="handleDrop(event,'jpg2pngInput')">
+            <input type="file" id="jpg2pngInput" accept="image/jpeg,image/jpg,.jpg,.jpeg" onchange="convertImage(event,'png','jpg2pngResult','jpg2pngDownload','jpg2pngResultName','jpg2pngPreview')">
+            <div class="drop-icon">🖼️</div>
+            <div class="drop-title">Arraste a imagem JPG aqui</div>
+            <div class="drop-sub">ou clique para selecionar • JPG, JPEG</div>
+          </div>
+          <img id="jpg2pngPreview" class="img-preview">
+          <div class="result-box" id="jpg2pngResult">
+            <div class="result-info">
+              <div class="result-name" id="jpg2pngResultName">imagem.png</div>
+              <div>PNG pronto! ✅</div>
+            </div>
+            <a class="btn btn-success" id="jpg2pngDownload" download>⬇️ Baixar PNG</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEBP TO JPG -->
+      <div class="tab-content" id="content-webp2jpg">
+        <div class="converter-card">
+          <div class="converter-title">🔵 Converter WebP → JPG</div>
+          <div class="converter-desc">Converta imagens WebP para o formato JPG amplamente compatível. Qualidade 95%.</div>
+          <div class="drop-zone" id="dropWebp2jpg" ondragover="handleDragOver(event,'dropWebp2jpg')" ondragleave="handleDragLeave('dropWebp2jpg')" ondrop="handleDrop(event,'webp2jpgInput')">
+            <input type="file" id="webp2jpgInput" accept="image/webp,.webp" onchange="convertImage(event,'jpeg','webp2jpgResult','webp2jpgDownload','webp2jpgResultName','webp2jpgPreview',0.95,'.jpg')">
+            <div class="drop-icon">🔵</div>
+            <div class="drop-title">Arraste a imagem WebP aqui</div>
+            <div class="drop-sub">ou clique para selecionar • WebP</div>
+          </div>
+          <img id="webp2jpgPreview" class="img-preview">
+          <div class="result-box" id="webp2jpgResult">
+            <div class="result-info">
+              <div class="result-name" id="webp2jpgResultName">imagem.jpg</div>
+              <div>JPG pronto! ✅</div>
+            </div>
+            <a class="btn btn-success" id="webp2jpgDownload" download>⬇️ Baixar JPG</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- IMG TO ICO -->
+      <div class="tab-content" id="content-ico">
+        <div class="converter-card">
+          <div class="converter-title">🖱️ Converter Imagem → ICO</div>
+          <div class="converter-desc">Converta JPG ou PNG para arquivo .ico com múltiplos tamanhos (16x16, 32x32, 48x48, 64x64).</div>
+          <div style="margin-bottom:16px">
+            <div class="form-label" style="margin-bottom:8px">Tamanhos incluídos:</div>
+            <div class="ico-sizes">
+              <div class="ico-size-chip active" data-size="16">16×16</div>
+              <div class="ico-size-chip active" data-size="32">32×32</div>
+              <div class="ico-size-chip active" data-size="48">48×48</div>
+              <div class="ico-size-chip active" data-size="64">64×64</div>
+            </div>
+          </div>
+          <div class="drop-zone" id="dropIco" ondragover="handleDragOver(event,'dropIco')" ondragleave="handleDragLeave('dropIco')" ondrop="handleDrop(event,'icoInput')">
+            <input type="file" id="icoInput" accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png" onchange="convertToIco(event)">
+            <div class="drop-icon">🖱️</div>
+            <div class="drop-title">Arraste a imagem aqui</div>
+            <div class="drop-sub">ou clique para selecionar • JPG, PNG</div>
+          </div>
+          <img id="icoPreview" class="img-preview">
+          <div class="status-area" id="icoStatus"></div>
+          <div class="result-box" id="icoResult">
+            <div class="result-info">
+              <div class="result-name" id="icoResultName">favicon.ico</div>
+              <div>ICO pronto! ✅ Inclui múltiplos tamanhos.</div>
+            </div>
+            <a class="btn btn-success" id="icoDownload" download>⬇️ Baixar ICO</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // Auth
+  const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+  if (!session || (Date.now() - session.ts > 24*60*60*1000)) window.location.href = '../';
+  else { document.getElementById('userName').textContent = session.user; document.getElementById('userAvatar').textContent = session.user[0].toUpperCase(); }
+
+  function logout() { if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; } }
+
+  function toast(msg, type = 'info') {
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toastContainer').appendChild(el);
+    setTimeout(() => el.remove(), 3100);
+  }
+
+  // Tabs
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.getElementById('content-' + name).classList.add('active');
+  }
+
+  // Drag and drop
+  function handleDragOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('dragover'); }
+  function handleDragLeave(id) { document.getElementById(id).classList.remove('dragover'); }
+  function handleDrop(e, inputId) {
+    e.preventDefault();
+    const dropId = e.currentTarget.id;
+    document.getElementById(dropId).classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      const input = document.getElementById(inputId);
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(files[0]);
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change'));
+    }
+  }
+
+  // ICO size chips toggle
+  document.querySelectorAll('.ico-size-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      this.classList.toggle('active');
+    });
+  });
+
+  // ===== MP4 TO MP3 WITH FFMPEG =====
+  let ffmpegLoaded = false;
+  let ffmpegInstance = null;
+  let mp4File = null;
+
+  async function loadFFmpeg() {
+    try {
+      const { createFFmpeg, fetchFile } = FFmpeg;
+      ffmpegInstance = createFFmpeg({
+        log: true,
+        progress: ({ ratio }) => {
+          const pct = Math.round(ratio * 100);
+          document.getElementById('mp4ProgressFill').style.width = pct + '%';
+          document.getElementById('mp4Status').textContent = `Convertendo... ${pct}%`;
+          document.getElementById('mp4Status').className = 'status-area';
+        }
+      });
+      await ffmpegInstance.load();
+      ffmpegLoaded = true;
+      document.getElementById('ffmpegStatus').innerHTML = '<span>✅</span> <span>FFmpeg carregado! Pronto para converter.</span>';
+      document.getElementById('ffmpegStatus').style.background = 'rgba(16,185,129,0.1)';
+      document.getElementById('ffmpegStatus').style.borderColor = 'rgba(16,185,129,0.3)';
+      document.getElementById('ffmpegStatus').style.color = '#34d399';
+    } catch(e) {
+      document.getElementById('ffmpegStatus').innerHTML = '<span>⚠️</span> <span>FFmpeg não disponível. Usando método alternativo para MP4→MP3.</span>';
+      document.getElementById('ffmpegStatus').style.background = 'rgba(245,158,11,0.1)';
+    }
+  }
+
+  function handleMp4(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    mp4File = file;
+    document.getElementById('mp4FileInfo').style.display = 'flex';
+    document.getElementById('mp4FileName').textContent = file.name;
+    document.getElementById('mp4FileSize').textContent = formatSize(file.size);
+    document.getElementById('convertMp4Btn').style.display = 'inline-flex';
+    document.getElementById('mp4Result').classList.remove('show');
+    document.getElementById('mp4Status').textContent = 'Arquivo selecionado. Clique em Converter.';
+    document.getElementById('mp4Status').className = 'status-area';
+  }
+
+  async function convertMp4() {
+    if (!mp4File) return;
+    const btn = document.getElementById('convertMp4Btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Convertendo...';
+    document.getElementById('mp4Progress').style.display = 'block';
+    document.getElementById('mp4ProgressFill').style.width = '0%';
+
+    if (ffmpegLoaded && ffmpegInstance) {
+      try {
+        const { fetchFile } = FFmpeg;
+        const inputName = 'input.mp4';
+        const outputName = 'output.mp3';
+        ffmpegInstance.FS('writeFile', inputName, await fetchFile(mp4File));
+        await ffmpegInstance.run('-i', inputName, '-q:a', '0', '-map', 'a', outputName);
+        const data = ffmpegInstance.FS('readFile', outputName);
+        const blob = new Blob([data.buffer], { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+        const resultName = mp4File.name.replace(/\.mp4$/i, '.mp3');
+        document.getElementById('mp4Download').href = url;
+        document.getElementById('mp4Download').download = resultName;
+        document.getElementById('mp4ResultName').textContent = resultName;
+        document.getElementById('mp4Result').classList.add('show');
+        document.getElementById('mp4Status').textContent = '✅ Conversão concluída!';
+        document.getElementById('mp4Status').className = 'status-area success';
+        document.getElementById('mp4ProgressFill').style.width = '100%';
+        toast('MP3 gerado com sucesso!', 'success');
+      } catch(e) {
+        document.getElementById('mp4Status').textContent = '❌ Erro: ' + e.message;
+        document.getElementById('mp4Status').className = 'status-area error';
+        toast('Erro na conversão: ' + e.message, 'error');
+      }
+    } else {
+      // Fallback: Use Web Audio API to extract audio
+      try {
+        document.getElementById('mp4Status').textContent = 'Extraindo áudio via Web Audio API...';
+        document.getElementById('mp4ProgressFill').style.width = '30%';
+        const arrayBuffer = await mp4File.arrayBuffer();
+        document.getElementById('mp4ProgressFill').style.width = '60%';
+        const audioCtx = new AudioContext();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        document.getElementById('mp4ProgressFill').style.width = '80%';
+        const wavBlob = audioBufferToWav(audioBuffer);
+        const url = URL.createObjectURL(wavBlob);
+        const resultName = mp4File.name.replace(/\.mp4$/i, '.wav');
+        document.getElementById('mp4Download').href = url;
+        document.getElementById('mp4Download').download = resultName;
+        document.getElementById('mp4ResultName').textContent = resultName + ' (WAV - FFmpeg não disponível)';
+        document.getElementById('mp4Result').classList.add('show');
+        document.getElementById('mp4ProgressFill').style.width = '100%';
+        document.getElementById('mp4Status').textContent = '✅ Áudio extraído como WAV!';
+        document.getElementById('mp4Status').className = 'status-area success';
+        toast('Áudio extraído! (WAV - FFmpeg indisponível)', 'warning');
+      } catch(e) {
+        document.getElementById('mp4Status').textContent = '❌ Erro: ' + e.message + '. Tente um arquivo MP4 com trilha de áudio.';
+        document.getElementById('mp4Status').className = 'status-area error';
+        toast('Erro: ' + e.message, 'error');
+      }
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '🎵 Converter para MP3';
+  }
+
+  // WAV encoder fallback
+  function audioBufferToWav(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const length = buffer.length * numChannels * 2 + 44;
+    const arrayBuffer = new ArrayBuffer(length);
+    const view = new DataView(arrayBuffer);
+    function writeString(offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
+    function writeUint32(offset, val) { view.setUint32(offset, val, true); }
+    function writeUint16(offset, val) { view.setUint16(offset, val, true); }
+    writeString(0, 'RIFF'); writeUint32(4, length - 8); writeString(8, 'WAVE');
+    writeString(12, 'fmt '); writeUint32(16, 16); writeUint16(20, 1); writeUint16(22, numChannels);
+    writeUint32(24, sampleRate); writeUint32(28, sampleRate * numChannels * 2);
+    writeUint16(32, numChannels * 2); writeUint16(34, 16); writeString(36, 'data');
+    writeUint32(40, buffer.length * numChannels * 2);
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  // ===== IMAGE CONVERTER (Canvas) =====
+  function convertImage(e, toFormat, resultId, downloadId, nameId, previewId, quality = 1.0, ext = null) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (toFormat === 'jpeg') { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+        ctx.drawImage(img, 0, 0);
+        const mimeType = 'image/' + toFormat;
+        canvas.toBlob(function(blob) {
+          const url = URL.createObjectURL(blob);
+          const extension = ext || ('.' + (toFormat === 'jpeg' ? 'jpg' : toFormat));
+          const baseName = file.name.replace(/\.[^.]+$/, '');
+          const newName = baseName + extension;
+          document.getElementById(downloadId).href = url;
+          document.getElementById(downloadId).download = newName;
+          document.getElementById(nameId).textContent = newName;
+          document.getElementById(resultId).classList.add('show');
+          const preview = document.getElementById(previewId);
+          preview.src = url; preview.style.display = 'block';
+          toast('Imagem convertida!', 'success');
+        }, mimeType, quality);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ===== IMAGE TO ICO =====
+  function convertToIco(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('icoStatus');
+    statusEl.textContent = 'Processando...';
+    statusEl.className = 'status-area';
+
+    const activeSizes = [...document.querySelectorAll('.ico-size-chip.active')].map(c => parseInt(c.dataset.size));
+    if (!activeSizes.length) { toast('Selecione pelo menos um tamanho', 'warning'); return; }
+
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = async function() {
+        try {
+          const imageDataList = [];
+          for (const size of activeSizes) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, size, size);
+            const pngData = await new Promise(resolve => {
+              canvas.toBlob(blob => {
+                const fr = new FileReader();
+                fr.onload = () => resolve(new Uint8Array(fr.result));
+                fr.readAsArrayBuffer(blob);
+              }, 'image/png');
+            });
+            imageDataList.push({ size, data: pngData });
+          }
+
+          const icoData = buildIco(imageDataList);
+          const blob = new Blob([icoData], { type: 'image/x-icon' });
+          const url = URL.createObjectURL(blob);
+          const baseName = file.name.replace(/\.[^.]+$/, '');
+          const newName = baseName + '.ico';
+          document.getElementById('icoDownload').href = url;
+          document.getElementById('icoDownload').download = newName;
+          document.getElementById('icoResultName').textContent = newName;
+          document.getElementById('icoResult').classList.add('show');
+
+          const preview = document.getElementById('icoPreview');
+          preview.src = ev.target.result; preview.style.display = 'block';
+
+          statusEl.textContent = `✅ ICO criado com ${activeSizes.length} tamanho(s): ${activeSizes.join('x, ')}px`;
+          statusEl.className = 'status-area success';
+          toast('ICO gerado!', 'success');
+        } catch(err) {
+          statusEl.textContent = '❌ Erro: ' + err.message;
+          statusEl.className = 'status-area error';
+          toast('Erro ao gerar ICO', 'error');
+        }
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function buildIco(images) {
+    const count = images.length;
+    const headerSize = 6;
+    const dirEntrySize = 16;
+    const totalDirSize = dirEntrySize * count;
+    const totalSize = headerSize + totalDirSize + images.reduce((s, img) => s + img.data.length, 0);
+    const buf = new ArrayBuffer(totalSize);
+    const view = new DataView(buf);
+    // ICONDIR header
+    view.setUint16(0, 0, true);  // reserved
+    view.setUint16(2, 1, true);  // type: 1=ICO
+    view.setUint16(4, count, true);
+    // Directory entries
+    let dataOffset = headerSize + totalDirSize;
+    images.forEach((img, i) => {
+      const base = headerSize + i * dirEntrySize;
+      view.setUint8(base, img.size >= 256 ? 0 : img.size);
+      view.setUint8(base + 1, img.size >= 256 ? 0 : img.size);
+      view.setUint8(base + 2, 0); // color count
+      view.setUint8(base + 3, 0); // reserved
+      view.setUint16(base + 4, 1, true); // planes
+      view.setUint16(base + 6, 32, true); // bit count
+      view.setUint32(base + 8, img.data.length, true);
+      view.setUint32(base + 12, dataOffset, true);
+      dataOffset += img.data.length;
+    });
+    // Image data
+    const arr = new Uint8Array(buf);
+    let pos = headerSize + totalDirSize;
+    images.forEach(img => { arr.set(img.data, pos); pos += img.data.length; });
+    return arr;
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  // Load FFmpeg from CDN
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+  script.onload = () => loadFFmpeg();
+  script.onerror = () => {
+    document.getElementById('ffmpegStatus').innerHTML = '<span>⚠️</span> <span>FFmpeg CDN indisponível. Usando método alternativo (WAV).</span>';
+  };
+  document.head.appendChild(script);
+</script>
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — Email Temporário</title>
+  <meta name="description" content="Gere emails temporários instantaneamente no RitiFull.">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <style>
+    /* Email display */
+    .email-display-card {
+      background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06));
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      animation: borderGlow 4s ease-in-out infinite;
+    }
+    .email-display-card::before {
+      content: ''; position: absolute;
+      top: -50px; right: -50px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(124,58,237,0.15), transparent 70%);
+      pointer-events: none;
+    }
+    .email-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 12px; }
+    .email-address {
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 22px; font-weight: 700;
+      color: var(--text-primary);
+      word-break: break-all;
+      margin-bottom: 20px;
+      min-height: 30px;
+    }
+    .email-address.loading { color: var(--text-muted); font-size: 16px; animation: pulse 1.5s ease-in-out infinite; }
+    .email-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .copy-feedback { font-size: 12px; color: var(--accent-green); margin-top: 8px; opacity: 0; transition: opacity 0.3s ease; }
+    .copy-feedback.show { opacity: 1; }
+    /* Timer */
+    .email-timer { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+    .timer-bar { height: 3px; background: var(--bg-4); border-radius: var(--radius-full); margin-top: 8px; }
+    .timer-fill { height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius: var(--radius-full); transition: width 1s linear; width: 100%; }
+    /* Inbox */
+    .inbox-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+    .inbox-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+    .inbox-badge { background: rgba(124,58,237,0.2); color: var(--accent-purple-light); border: 1px solid rgba(124,58,237,0.3); padding: 3px 10px; border-radius: var(--radius-full); font-size: 12px; font-weight: 700; }
+    .inbox-empty {
+      text-align: center; padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .inbox-empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.5; }
+    .mail-item {
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+      margin-bottom: 10px; cursor: pointer;
+      transition: var(--transition); animation: fadeIn 0.3s ease;
+    }
+    .mail-item:hover { border-color: var(--border-accent); background: var(--bg-4); transform: translateX(4px); }
+    .mail-item.unread { border-left: 3px solid var(--accent-purple); }
+    .mail-from { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+    .mail-subject { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .mail-preview { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mail-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    /* Message modal */
+    .msg-from { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+    .msg-body { background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin-top: 16px; max-height: 400px; overflow-y: auto; font-size: 14px; line-height: 1.7; }
+    /* History */
+    .history-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+    .history-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .history-title { font-size: 16px; font-weight: 700; }
+    .history-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      transition: var(--transition); cursor: pointer;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: var(--glass-hover); }
+    .history-email { font-family: monospace; font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    .history-empty { padding: 30px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+    /* Domain selector */
+    .domain-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .domain-chip {
+      padding: 6px 14px; border-radius: var(--radius-full);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--border); background: var(--glass);
+      color: var(--text-secondary); transition: var(--transition);
+    }
+    .domain-chip.active { background: rgba(124,58,237,0.2); color: var(--accent-purple-light); border-color: rgba(124,58,237,0.4); }
+    .domain-chip:hover { border-color: var(--border-accent); color: var(--text-primary); }
+    /* Auto refresh indicator */
+    .auto-refresh-bar { height: 2px; background: var(--bg-4); border-radius: var(--radius-full); overflow: hidden; margin-top: 8px; }
+    .auto-refresh-fill { height: 100%; background: var(--accent-cyan); border-radius: var(--radius-full); animation: autoRefillBar 30s linear infinite; transform-origin: left; }
+    @keyframes autoRefillBar { from { width: 100%; } to { width: 0%; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">⚡</div>
+      <span class="sidebar-logo-text">RitiFull</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <a href="../home/" class="nav-item"><span class="nav-item-icon">🏠</span><span>Home</span></a>
+      <a href="../email/" class="nav-item active"><span class="nav-item-icon">📧</span><span>Email Temporário</span></a>
+      <a href="../converter/" class="nav-item"><span class="nav-item-icon">🔄</span><span>Conversor</span></a>
+      <a href="../ia/" class="nav-item"><span class="nav-item-icon">🤖</span><span>IA</span></a>
+      <a href="../sites/" class="nav-item"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
+      <div class="nav-section-label">Administração</div>
+      <a href="../admin/" class="nav-item"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-badge" onclick="logout()">
+        <div class="user-avatar" id="userAvatar">R</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Ritizin</div>
+          <div class="user-role">Administrador</div>
+        </div>
+        <span style="color:var(--text-muted);font-size:18px">↩</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <header class="page-header">
+      <div class="flex items-center gap-3">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1 class="page-title">📧 Email Temporário</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" style="font-size:12px;color:var(--text-muted)">
+          <span>Auto-refresh em</span>
+          <span id="refreshCountdown" style="color:var(--accent-cyan);font-weight:700">30s</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start" id="emailLayout">
+
+        <!-- LEFT COLUMN -->
+        <div>
+          <!-- Email Generator Card -->
+          <div class="email-display-card" style="margin-bottom:24px">
+            <div class="email-label">Seu email temporário</div>
+            <div class="email-address" id="emailDisplay">Nenhum email gerado</div>
+            <div class="copy-feedback" id="copyFeedback">✅ Copiado para a área de transferência!</div>
+            <div class="email-actions">
+              <button class="btn btn-primary" id="generateBtn" onclick="generateEmail()">
+                <span>✨</span> Gerar Email
+              </button>
+              <button class="btn btn-secondary" id="refreshBtn" onclick="refreshInbox()" disabled>
+                <span id="refreshIcon">🔄</span> Atualizar
+              </button>
+              <button class="btn btn-ghost btn-sm" id="copyBtn" onclick="copyEmail()" disabled title="Copiar email">
+                📋 Copiar
+              </button>
+            </div>
+            <div class="auto-refresh-bar" id="autoRefreshBar" style="display:none">
+              <div class="auto-refresh-fill" id="autoRefreshFill"></div>
+            </div>
+          </div>
+
+          <!-- Domain Selector -->
+          <div style="margin-bottom:24px">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Domínio preferido</div>
+            <div class="domain-chips" id="domainChips">
+              <div class="domain-chip active" data-domain="auto">🎲 Automático</div>
+              <div class="domain-chip" data-domain="brightgeta.com">@brightgeta.com</div>
+              <div class="domain-chip" data-domain="FusionInbox.com">@FusionInbox.com</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
+              ℹ️ Os domínios acima são visuais. O email funcional é gerado via mail.tm.
+            </div>
+          </div>
+
+          <!-- INBOX -->
+          <div>
+            <div class="inbox-header">
+              <div class="inbox-title">📥 Inbox <span class="inbox-badge" id="msgCount">0</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="refreshInbox()" id="refreshInboxBtn" disabled>🔄 Atualizar Inbox</button>
+            </div>
+            <div id="inboxContainer">
+              <div class="inbox-empty">
+                <div class="inbox-empty-icon">📭</div>
+                <div style="font-size:16px;font-weight:600;margin-bottom:8px">Nenhum email ainda</div>
+                <div style="font-size:13px">Gere um email e aguarde as mensagens chegarem</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: History -->
+        <div>
+          <div class="history-card">
+            <div class="history-header">
+              <div class="history-title">🕐 Histórico</div>
+              <button class="btn btn-danger btn-sm" onclick="clearHistory()" title="Limpar tudo">🗑️ Limpar</button>
+            </div>
+            <div id="historyList">
+              <div class="history-empty">Nenhum email no histórico</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Message Modal -->
+<div class="modal-overlay" id="msgModal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <div class="modal-title" id="modalSubject">Assunto</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="msg-from" id="modalFrom"></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px" id="modalTime"></div>
+    <div class="msg-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // Auth check
+  const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+  if (!session || (Date.now() - session.ts > 24*60*60*1000)) window.location.href = '../';
+  else {
+    document.getElementById('userName').textContent = session.user;
+    document.getElementById('userAvatar').textContent = session.user[0].toUpperCase();
+  }
+
+  const MAIL_API = 'https://api.mail.tm';
+  let currentEmail = null, currentToken = null, currentPassword = null;
+  let autoRefreshInterval = null, countdownInterval = null, countdownValue = 30;
+  let selectedDomain = 'auto';
+  let availableDomains = [];
+
+  // Domain chips
+  document.querySelectorAll('.domain-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('.domain-chip').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      selectedDomain = this.dataset.domain;
+    });
+  });
+
+  // Toast
+  function toast(msg, type = 'info') {
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toastContainer').appendChild(el);
+    setTimeout(() => el.remove(), 3100);
+  }
+
+  // Fetch domains from mail.tm
+  async function fetchDomains() {
+    try {
+      const res = await fetch(`${MAIL_API}/domains?page=1`);
+      const data = await res.json();
+      availableDomains = (data['hydra:member'] || []).filter(d => d.isActive).map(d => d.domain);
+      return availableDomains;
+    } catch(e) {
+      return ['mail.tm'];
+    }
+  }
+
+  // Generate random username
+  function randomUsername() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const all = chars + digits;
+    let name = chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 8; i++) name += all[Math.floor(Math.random() * all.length)];
+    return name;
+  }
+
+  // Generate email
+  async function generateEmail() {
+    const btn = document.getElementById('generateBtn');
+    const display = document.getElementById('emailDisplay');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Gerando...';
+    display.classList.add('loading');
+    display.textContent = 'Gerando email...';
+
+    try {
+      const domains = availableDomains.length ? availableDomains : await fetchDomains();
+      const domain = domains[Math.floor(Math.random() * domains.length)] || 'mail.tm';
+      const username = randomUsername();
+      const address = `${username}@${domain}`;
+      const password = randomUsername() + 'Aa1!';
+
+      // Create account
+      const createRes = await fetch(`${MAIL_API}/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, password })
+      });
+
+      if (!createRes.ok) {
+        const err = await createRes.json();
+        throw new Error(err['hydra:description'] || 'Erro ao criar conta');
+      }
+
+      // Get token
+      const tokenRes = await fetch(`${MAIL_API}/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, password })
+      });
+      const tokenData = await tokenRes.json();
+
+      currentEmail = address;
+      currentPassword = password;
+      currentToken = tokenData.token;
+
+      // Determine display email (visual domain)
+      let displayEmail = address;
+      if (selectedDomain !== 'auto') {
+        displayEmail = `${username}@${selectedDomain}`;
+      }
+
+      display.classList.remove('loading');
+      display.textContent = displayEmail;
+
+      // Enable buttons
+      document.getElementById('refreshBtn').disabled = false;
+      document.getElementById('copyBtn').disabled = false;
+      document.getElementById('refreshInboxBtn').disabled = false;
+      document.getElementById('autoRefreshBar').style.display = 'block';
+
+      // Add to history
+      addToHistory({ address: displayEmail, realAddress: address, token: currentToken, password, time: Date.now() });
+
+      // Clear inbox
+      document.getElementById('inboxContainer').innerHTML = `
+        <div class="inbox-empty">
+          <div class="inbox-empty-icon">📬</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px">Email pronto!</div>
+          <div style="font-size:13px">Aguardando mensagens em <strong>${displayEmail}</strong></div>
+        </div>`;
+      document.getElementById('msgCount').textContent = '0';
+
+      startAutoRefresh();
+      toast(`Email gerado: ${displayEmail}`, 'success');
+    } catch(e) {
+      display.classList.remove('loading');
+      display.textContent = 'Erro ao gerar email';
+      toast('Erro: ' + e.message, 'error');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<span>✨</span> Gerar Email';
+  }
+
+  // Refresh inbox
+  async function refreshInbox() {
+    if (!currentToken) return;
+    const icon = document.getElementById('refreshIcon');
+    icon.style.animation = 'spin 0.7s linear infinite';
+
+    try {
+      const res = await fetch(`${MAIL_API}/messages?page=1`, {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      const data = await res.json();
+      const messages = data['hydra:member'] || [];
+      renderInbox(messages);
+      document.getElementById('msgCount').textContent = messages.length;
+
+      // Reset countdown
+      countdownValue = 30;
+    } catch(e) {
+      toast('Erro ao atualizar inbox', 'error');
+    }
+
+    icon.style.animation = '';
+    resetAutoRefreshBar();
+  }
+
+  function renderInbox(messages) {
+    const container = document.getElementById('inboxContainer');
+    if (!messages.length) {
+      container.innerHTML = `
+        <div class="inbox-empty">
+          <div class="inbox-empty-icon">📭</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px">Caixa vazia</div>
+          <div style="font-size:13px">Nenhuma mensagem recebida ainda</div>
+        </div>`;
+      return;
+    }
+    container.innerHTML = messages.map(msg => `
+      <div class="mail-item ${msg.seen ? '' : 'unread'}" onclick="viewMessage('${msg.id}')">
+        <div class="flex justify-between items-start gap-3">
+          <div style="flex:1;min-width:0">
+            <div class="mail-from">De: ${escapeHtml(msg.from?.address || msg.from || '???')}</div>
+            <div class="mail-subject">${msg.seen ? '' : '🔵 '}${escapeHtml(msg.subject || '(Sem assunto)')}</div>
+            <div class="mail-preview">${escapeHtml(msg.intro || '...')}</div>
+          </div>
+          <div class="mail-time">${formatTime(msg.createdAt)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function viewMessage(id) {
+    try {
+      const res = await fetch(`${MAIL_API}/messages/${id}`, {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      const msg = await res.json();
+      document.getElementById('modalSubject').textContent = msg.subject || '(Sem assunto)';
+      document.getElementById('modalFrom').textContent = `De: ${msg.from?.address || '???'} | Para: ${msg.to?.[0]?.address || '???'}`;
+      document.getElementById('modalTime').textContent = formatTime(msg.createdAt);
+      const body = document.getElementById('modalBody');
+      if (msg.html && msg.html.length > 0) {
+        const html = typeof msg.html === 'string' ? msg.html : msg.html.join('');
+        body.innerHTML = html;
+      } else {
+        body.innerHTML = `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(msg.text || '(Sem conteúdo)')}</pre>`;
+      }
+      document.getElementById('msgModal').classList.add('open');
+      // Refresh to mark as read
+      setTimeout(refreshInbox, 500);
+    } catch(e) {
+      toast('Erro ao abrir mensagem', 'error');
+    }
+  }
+
+  function closeModal() { document.getElementById('msgModal').classList.remove('open'); }
+  document.getElementById('msgModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+  function copyEmail() {
+    if (!currentEmail) return;
+    const display = document.getElementById('emailDisplay');
+    navigator.clipboard.writeText(display.textContent).then(() => {
+      const fb = document.getElementById('copyFeedback');
+      fb.classList.add('show');
+      setTimeout(() => fb.classList.remove('show'), 2500);
+    });
+  }
+
+  // Auto refresh
+  function startAutoRefresh() {
+    clearInterval(autoRefreshInterval);
+    clearInterval(countdownInterval);
+    countdownValue = 30;
+
+    autoRefreshInterval = setInterval(() => {
+      refreshInbox();
+    }, 30000);
+
+    countdownInterval = setInterval(() => {
+      countdownValue--;
+      if (countdownValue < 0) countdownValue = 30;
+      document.getElementById('refreshCountdown').textContent = countdownValue + 's';
+    }, 1000);
+  }
+
+  function resetAutoRefreshBar() {
+    const fill = document.getElementById('autoRefreshFill');
+    fill.style.animation = 'none';
+    fill.offsetHeight; // reflow
+    fill.style.animation = '';
+  }
+
+  // History
+  const HISTORY_KEY = 'ritifull_email_history';
+
+  function loadHistory() { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  function saveHistory(h) { localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 20))); }
+
+  function addToHistory(item) {
+    const h = loadHistory();
+    // Remove if already exists
+    const filtered = h.filter(e => e.address !== item.address);
+    filtered.unshift(item);
+    saveHistory(filtered.slice(0, 20));
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const h = loadHistory();
+    const container = document.getElementById('historyList');
+    if (!h.length) {
+      container.innerHTML = '<div class="history-empty">Nenhum email no histórico</div>';
+      return;
+    }
+    container.innerHTML = h.map((item, i) => `
+      <div class="history-item">
+        <span style="font-size:16px">📧</span>
+        <span class="history-email" title="${escapeHtml(item.address)}">${escapeHtml(item.address)}</span>
+        <span class="history-time">${formatRelTime(item.time)}</span>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeHistory(${i});event.stopPropagation()" title="Remover">🗑️</button>
+      </div>
+    `).join('');
+  }
+
+  function removeHistory(index) {
+    const h = loadHistory();
+    h.splice(index, 1);
+    saveHistory(h);
+    renderHistory();
+    toast('Email removido do histórico', 'info');
+  }
+
+  function clearHistory() {
+    if (!confirm('Limpar todo o histórico?')) return;
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+    toast('Histórico limpo!', 'success');
+  }
+
+  // Helpers
+  function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    } catch { return iso; }
+  }
+
+  function formatRelTime(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'agora';
+    if (diff < 3600000) return Math.floor(diff/60000) + 'm';
+    if (diff < 86400000) return Math.floor(diff/3600000) + 'h';
+    return Math.floor(diff/86400000) + 'd';
+  }
+
+  function logout() {
+    if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; }
+  }
+
+  // Responsive
+  window.addEventListener('resize', () => {
+    const layout = document.getElementById('emailLayout');
+    if (window.innerWidth < 900) {
+      layout.style.gridTemplateColumns = '1fr';
+    } else {
+      layout.style.gridTemplateColumns = '1fr 300px';
+    }
+  });
+  if (window.innerWidth < 900) document.getElementById('emailLayout').style.gridTemplateColumns = '1fr';
+
+  // Init
+  fetchDomains();
+  renderHistory();
+</script>
+</body>
+</html>

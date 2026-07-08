@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — Home</title>
+  <meta name="description" content="Dashboard RitiFull — Acesse todas as ferramentas.">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <style>
+    .hero-section {
+      padding: 48px 0 32px;
+      position: relative;
+    }
+    .hero-greeting {
+      font-size: 14px; font-weight: 600;
+      color: var(--accent-cyan); letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 42px; font-weight: 900; line-height: 1.1;
+      margin-bottom: 16px;
+    }
+    .hero-sub { font-size: 16px; color: var(--text-secondary); max-width: 500px; margin-bottom: 32px; }
+    .hero-stats {
+      display: flex; gap: 32px; flex-wrap: wrap;
+    }
+    .stat-item { display: flex; flex-direction: column; gap: 4px; }
+    .stat-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
+    .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    /* Feature cards */
+    .feature-cards { margin-top: 40px; }
+    .section-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .feature-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      transition: var(--transition);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      display: block;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--card-from, rgba(124,58,237,0.05)), var(--card-to, transparent));
+      opacity: 0; transition: opacity 0.3s ease;
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-card:hover {
+      border-color: var(--card-border, rgba(124,58,237,0.4));
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 30px var(--card-glow, rgba(124,58,237,0.15));
+    }
+    .card-icon {
+      width: 52px; height: 52px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; margin-bottom: 16px;
+      background: var(--card-icon-bg, rgba(124,58,237,0.15));
+      border: 1px solid var(--card-icon-border, rgba(124,58,237,0.3));
+    }
+    .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+    .card-arrow { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 20px; opacity: 0; transition: var(--transition); }
+    .feature-card:hover .card-arrow { opacity: 1; transform: translateY(-50%) translateX(4px); }
+    /* Activity pulse indicator */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s ease-in-out infinite; }
+    /* Welcome banner */
+    .welcome-banner {
+      background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(6,182,212,0.1));
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 32px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      animation: fadeIn 0.5s ease;
+    }
+    .banner-text { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+    /* Quick links */
+    .quick-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .quick-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: var(--radius-full); font-size: 12px; font-weight: 600;
+      color: var(--text-secondary); cursor: pointer; transition: var(--transition);
+      text-decoration: none;
+    }
+    .quick-link:hover { background: var(--glass-hover); color: var(--text-primary); border-color: var(--border-accent); }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">⚡</div>
+        <span class="sidebar-logo-text">RitiFull</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Principal</div>
+        <a href="../home/" class="nav-item active" id="nav-home">
+          <span class="nav-item-icon">🏠</span>
+          <span>Home</span>
+        </a>
+        <a href="../email/" class="nav-item" id="nav-email">
+          <span class="nav-item-icon">📧</span>
+          <span>Email Temporário</span>
+        </a>
+        <a href="../converter/" class="nav-item" id="nav-converter">
+          <span class="nav-item-icon">🔄</span>
+          <span>Conversor</span>
+        </a>
+        <a href="../ia/" class="nav-item" id="nav-ia">
+          <span class="nav-item-icon">🤖</span>
+          <span>IA</span>
+        </a>
+        <a href="../sites/" class="nav-item" id="nav-sites">
+          <span class="nav-item-icon">🌐</span>
+          <span>Sites</span>
+        </a>
+        <div class="nav-section-label">Administração</div>
+        <a href="../admin/" class="nav-item" id="nav-admin">
+          <span class="nav-item-icon">⚙️</span>
+          <span>Admin</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-badge" onclick="logout()">
+          <div class="user-avatar" id="userAvatar">R</div>
+          <div class="user-info">
+            <div class="user-name" id="userName">Ritizin</div>
+            <div class="user-role">Administrador</div>
+          </div>
+          <span style="color:var(--text-muted);font-size:18px">↩</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+      <header class="page-header">
+        <div class="flex items-center gap-3">
+          <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+          <h1 class="page-title">🏠 Dashboard</h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2" style="font-size:13px;color:var(--text-muted);">
+            <div class="status-dot"></div>
+            Online
+          </div>
+          <span style="font-size:13px;color:var(--text-secondary)" id="currentTime"></span>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+          <div>
+            <div style="font-size:22px;font-weight:800;font-family:var(--font-display)">
+              Bem-vindo de volta, <span class="text-gradient" id="welcomeName">Ritizin</span>! 👋
+            </div>
+            <div class="banner-text">Tudo certo por aqui. Escolha uma ferramenta e comece agora.</div>
+            <div class="quick-links">
+              <a href="../email/" class="quick-link">📧 Email Temp</a>
+              <a href="../converter/" class="quick-link">🔄 Converter</a>
+              <a href="../ia/" class="quick-link">🤖 Chat IA</a>
+              <a href="../sites/" class="quick-link">🌐 Sites</a>
+            </div>
+          </div>
+          <div style="font-size:80px;opacity:0.15;flex-shrink:0">⚡</div>
+        </div>
+
+        <!-- Feature Cards -->
+        <div class="section-title">Ferramentas</div>
+        <div class="grid grid-2" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px">
+
+          <a href="../email/" class="feature-card"
+             style="--card-from:rgba(124,58,237,0.08);--card-border:rgba(124,58,237,0.4);--card-glow:rgba(124,58,237,0.2);--card-icon-bg:rgba(124,58,237,0.15);--card-icon-border:rgba(124,58,237,0.3)">
+            <div class="card-icon">📧</div>
+            <div class="card-title">Email Temporário</div>
+            <div class="card-desc">Gere emails descartáveis instantaneamente. Receba mensagens sem expor seu email real. Histórico de até 20 emails.</div>
+            <span class="card-arrow">→</span>
+          </a>
+
+          <a href="../converter/" class="feature-card"
+             style="--card-from:rgba(6,182,212,0.08);--card-border:rgba(6,182,212,0.4);--card-glow:rgba(6,182,212,0.2);--card-icon-bg:rgba(6,182,212,0.15);--card-icon-border:rgba(6,182,212,0.3)">
+            <div class="card-icon">🔄</div>
+            <div class="card-title">Conversor</div>
+            <div class="card-desc">Converta MP4 → MP3, JPG → PNG, WebP → JPG e imagens → ICO. Tudo no navegador, sem upload externo.</div>
+            <span class="card-arrow">→</span>
+          </a>
+
+          <a href="../ia/" class="feature-card"
+             style="--card-from:rgba(236,72,153,0.08);--card-border:rgba(236,72,153,0.4);--card-glow:rgba(236,72,153,0.2);--card-icon-bg:rgba(236,72,153,0.15);--card-icon-border:rgba(236,72,153,0.3)">
+            <div class="card-icon">🤖</div>
+            <div class="card-title">Inteligência Artificial</div>
+            <div class="card-desc">Chat com IA embutida. Responde perguntas sobre ciência, história, tecnologia, cultura e muito mais.</div>
+            <span class="card-arrow">→</span>
+          </a>
+
+          <a href="../sites/" class="feature-card"
+             style="--card-from:rgba(16,185,129,0.08);--card-border:rgba(16,185,129,0.4);--card-glow:rgba(16,185,129,0.2);--card-icon-bg:rgba(16,185,129,0.15);--card-icon-border:rgba(16,185,129,0.3)">
+            <div class="card-icon">🌐</div>
+            <div class="card-title">Sites & Apps</div>
+            <div class="card-desc">Diretório curado de sites: Filmes & Séries, Otaku, IAs e mais. Gerenciado pelo admin.</div>
+            <span class="card-arrow">→</span>
+          </a>
+
+          <a href="../admin/" class="feature-card"
+             style="--card-from:rgba(245,158,11,0.08);--card-border:rgba(245,158,11,0.4);--card-glow:rgba(245,158,11,0.2);--card-icon-bg:rgba(245,158,11,0.15);--card-icon-border:rgba(245,158,11,0.3)">
+            <div class="card-icon">⚙️</div>
+            <div class="card-title">Painel Admin</div>
+            <div class="card-desc">Gerencie sites, categorias e conteúdo. Sincronizado em tempo real com o Supabase.</div>
+            <span class="card-arrow">→</span>
+          </a>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Auth check
+    const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+    if (!session || (Date.now() - session.ts > 24*60*60*1000)) {
+      window.location.href = '../';
+    } else {
+      document.getElementById('welcomeName').textContent = session.user;
+      document.getElementById('userName').textContent = session.user;
+      document.getElementById('userAvatar').textContent = session.user[0].toUpperCase();
+    }
+
+    // Clock
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('currentTime').textContent = now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    }
+    updateTime(); setInterval(updateTime, 1000);
+
+    // Sidebar toggle
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // Logout
+    function logout() {
+      if (confirm('Deseja sair?')) {
+        localStorage.removeItem('ritifull_session');
+        window.location.href = '../';
+      }
+    }
+  </script>
+</body>
+</html>

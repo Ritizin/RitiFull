@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — Admin</title>
+  <meta name="description" content="Painel de administração RitiFull.">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ADMIN TABS */
+    .admin-tab-content { display: none; }
+    .admin-tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg-3); }
+    .data-table td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--glass-hover); }
+    .data-table td .url-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Stats cards */
+    .admin-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .admin-stat { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; display: flex; align-items: center; gap: 14px; transition: var(--transition); }
+    .admin-stat:hover { border-color: var(--border-accent); }
+    .stat-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .stat-num { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1; }
+    .stat-lbl { font-size: 12px; color: var(--text-muted); }
+    /* Toolbar */
+    .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .table-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+    /* Form */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-full { grid-column: 1 / -1; }
+    /* Status indicator */
+    .status-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: var(--radius-md);
+      font-size: 13px; margin-bottom: 20px;
+    }
+    .status-bar.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
+    .status-bar.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+    .status-bar.warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #fbbf24; }
+    .status-bar.info { background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); color: #22d3ee; }
+    /* Table container */
+    .table-container { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .table-scroll { overflow-x: auto; }
+    /* Category badges */
+    .cat-badge { padding: 3px 10px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cat-filmes { background: rgba(236,72,153,0.15); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.3); }
+    .cat-otaku { background: rgba(245,158,11,0.15); color: #fde68a; border: 1px solid rgba(245,158,11,0.3); }
+    .cat-ia { background: rgba(6,182,212,0.15); color: #a5f3fc; border: 1px solid rgba(6,182,212,0.3); }
+    .cat-outros { background: rgba(124,58,237,0.15); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.3); }
+    /* DB setup card */
+    .db-setup-card { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
+    .sql-block { background: var(--bg-0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin-top: 12px; font-family: monospace; font-size: 13px; color: #86efac; white-space: pre; overflow-x: auto; line-height: 1.6; }
+    /* Thumbnail preview */
+    .thumb-preview { width: 60px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--bg-3); display: inline-block; vertical-align: middle; }
+    /* Search in admin */
+    .admin-search { position: relative; max-width: 280px; }
+    .admin-search .input { padding-left: 38px; }
+    .admin-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
+    /* Real-time indicator */
+    .rt-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent-green); }
+    .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-icon">⚡</div><span class="sidebar-logo-text">RitiFull</span></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <a href="../home/" class="nav-item"><span class="nav-item-icon">🏠</span><span>Home</span></a>
+      <a href="../email/" class="nav-item"><span class="nav-item-icon">📧</span><span>Email Temporário</span></a>
+      <a href="../converter/" class="nav-item"><span class="nav-item-icon">🔄</span><span>Conversor</span></a>
+      <a href="../ia/" class="nav-item"><span class="nav-item-icon">🤖</span><span>IA</span></a>
+      <a href="../sites/" class="nav-item"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
+      <div class="nav-section-label">Administração</div>
+      <a href="../admin/" class="nav-item active"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-badge" onclick="logout()">
+        <div class="user-avatar" id="userAvatar">R</div>
+        <div class="user-info"><div class="user-name" id="userName">Ritizin</div><div class="user-role">Administrador</div></div>
+        <span style="color:var(--text-muted);font-size:18px">↩</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <header class="page-header">
+      <div class="flex items-center gap-3">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1 class="page-title">⚙️ Painel Admin</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="rt-indicator"><div class="rt-dot"></div>Tempo real</div>
+        <span class="badge badge-purple">Admin</span>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <!-- STATS -->
+      <div class="admin-stats">
+        <div class="admin-stat">
+          <div class="stat-icon" style="background:rgba(236,72,153,0.15)">🎬</div>
+          <div><div class="stat-num text-gradient" id="statFilmes">—</div><div class="stat-lbl">Filmes & Séries</div></div>
+        </div>
+        <div class="admin-stat">
+          <div class="stat-icon" style="background:rgba(245,158,11,0.15)">⛩️</div>
+          <div><div class="stat-num" style="color:#fbbf24" id="statOtaku">—</div><div class="stat-lbl">Otaku</div></div>
+        </div>
+        <div class="admin-stat">
+          <div class="stat-icon" style="background:rgba(6,182,212,0.15)">🤖</div>
+          <div><div class="stat-num" style="color:#22d3ee" id="statIA">—</div><div class="stat-lbl">IA</div></div>
+        </div>
+        <div class="admin-stat">
+          <div class="stat-icon" style="background:rgba(124,58,237,0.15)">📦</div>
+          <div><div class="stat-num" style="color:var(--accent-purple-light)" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
+        </div>
+      </div>
+
+      <!-- DB Setup Notice -->
+      <div class="db-setup-card" id="dbSetupCard" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:20px">⚠️</span>
+          <strong>Setup do Banco de Dados necessário</strong>
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Execute este SQL no Supabase (SQL Editor) para criar a tabela de sites:</p>
+        <div class="sql-block">CREATE TABLE IF NOT EXISTS public.sites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  url TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'outros',
+  thumbnail TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all" ON public.sites
+  FOR ALL TO anon USING (true) WITH CHECK (true);</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="document.getElementById('dbSetupCard').style.display='none'">✕ Fechar</button>
+      </div>
+
+      <!-- ADMIN TABS -->
+      <div style="margin-bottom:20px">
+        <div class="tabs">
+          <button class="tab active" onclick="switchAdminTab('sites')" id="atab-sites">🌐 Sites</button>
+          <button class="tab" onclick="switchAdminTab('add')" id="atab-add">➕ Adicionar Site</button>
+        </div>
+      </div>
+
+      <!-- TAB: SITES LIST -->
+      <div class="admin-tab-content active" id="acontent-sites">
+        <div class="table-toolbar">
+          <div class="table-title">Sites Cadastrados</div>
+          <div class="flex items-center gap-3">
+            <div class="admin-search">
+              <span class="admin-search-icon">🔍</span>
+              <input class="input" type="text" id="adminSearch" placeholder="Buscar..." oninput="filterAdminSites()">
+            </div>
+            <select class="select" id="adminCatFilter" style="width:160px" onchange="filterAdminSites()">
+              <option value="">Todas as categorias</option>
+              <option value="filmes">🎬 Filmes</option>
+              <option value="otaku">⛩️ Otaku</option>
+              <option value="ia">🤖 IA</option>
+              <option value="outros">📦 Outros</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="switchAdminTab('add')">➕ Novo</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <table class="data-table" id="sitesTable">
+              <thead>
+                <tr>
+                  <th style="width:60px">Thumb</th>
+                  <th>Nome</th>
+                  <th>URL</th>
+                  <th>Categoria</th>
+                  <th style="width:80px">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="sitesTableBody">
+                <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)"><span class="spinner"></span> Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: ADD SITE -->
+      <div class="admin-tab-content" id="acontent-add">
+        <div style="max-width:640px">
+          <div style="margin-bottom:24px">
+            <div class="table-title" id="formTitle">➕ Adicionar Novo Site</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px">Preencha as informações do site ou app</div>
+          </div>
+
+          <div id="formStatus" style="display:none" class="status-bar"></div>
+
+          <form id="siteForm" onsubmit="submitSite(event)">
+            <input type="hidden" id="editId">
+            <div class="form-row">
+              <div class="form-group form-full">
+                <label class="form-label">Nome *</label>
+                <input class="input" type="text" id="siteName" placeholder="Ex: Netflix" required maxlength="100">
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label">URL *</label>
+                <input class="input" type="url" id="siteUrl" placeholder="https://..." required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Categoria *</label>
+                <select class="select" id="siteCat" required>
+                  <option value="">Selecione...</option>
+                  <option value="filmes">🎬 Filmes & Séries</option>
+                  <option value="otaku">⛩️ Otaku</option>
+                  <option value="ia">🤖 IA</option>
+                  <option value="outros">📦 Outros</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Thumbnail (URL da imagem)</label>
+                <input class="input" type="url" id="siteThumbnail" placeholder="https://...">
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label">Descrição</label>
+                <textarea class="input textarea" id="siteDesc" placeholder="Descreva brevemente este site..." maxlength="300"></textarea>
+              </div>
+            </div>
+            <div class="flex gap-3" style="margin-top:8px">
+              <button class="btn btn-primary" type="submit" id="submitBtn">✅ Salvar Site</button>
+              <button class="btn btn-ghost" type="button" onclick="resetForm()">↺ Limpar</button>
+              <button class="btn btn-secondary" type="button" onclick="switchAdminTab('sites')">← Voltar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:420px;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">🗑️</div>
+    <div class="modal-title" style="margin-bottom:8px">Confirmar exclusão</div>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:24px" id="confirmText">Tem certeza que deseja deletar este site?</p>
+    <div class="flex gap-3 justify-center">
+      <button class="btn btn-danger" id="confirmYes">🗑️ Deletar</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('confirmModal').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // Auth — admin only
+  const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+  if (!session || session.role !== 'admin' || (Date.now() - session.ts > 24*60*60*1000)) {
+    window.location.href = '../';
+  }
+  document.getElementById('userName').textContent = session.user;
+  document.getElementById('userAvatar').textContent = session.user[0].toUpperCase();
+  function logout() { if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; } }
+
+  // Supabase
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://opyeesltjnwzqokjdruu.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9weWVlc2x0am53enFva2pkcnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTkzNTcsImV4cCI6MjA5OTA5NTM1N30.Nl9S1qj__pHN1JfmedEatX2e-BRNmE7iOu0OravwSHc'
+  );
+
+  let allAdminSites = [];
+  let filteredSites = [];
+  const catLabels = { filmes: 'Filmes & Séries', otaku: 'Otaku', ia: 'IA', outros: 'Outros' };
+
+  function toast(msg, type = 'info') {
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toastContainer').appendChild(el);
+    setTimeout(() => el.remove(), 3100);
+  }
+
+  function switchAdminTab(tab) {
+    document.querySelectorAll('[id^="atab-"]').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('atab-' + tab).classList.add('active');
+    document.getElementById('acontent-' + tab).classList.add('active');
+  }
+
+  async function loadAdminSites() {
+    document.getElementById('sitesTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)"><span class="spinner"></span> Carregando...</td></tr>';
+    try {
+      const { data, error } = await sb.from('sites').select('*').order('created_at', { ascending: false });
+      if (error) {
+        if (error.code === '42P01') { document.getElementById('dbSetupCard').style.display = 'block'; }
+        throw error;
+      }
+      allAdminSites = data || [];
+    } catch(e) {
+      allAdminSites = [];
+      document.getElementById('sitesTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#f87171">❌ Erro ao carregar: ${escHtml(e.message)}</td></tr>`;
+    }
+    updateStats();
+    filterAdminSites();
+  }
+
+  function updateStats() {
+    const cats = { filmes: 0, otaku: 0, ia: 0 };
+    allAdminSites.forEach(s => { if (cats[s.category] !== undefined) cats[s.category]++; });
+    document.getElementById('statFilmes').textContent = cats.filmes;
+    document.getElementById('statOtaku').textContent = cats.otaku;
+    document.getElementById('statIA').textContent = cats.ia;
+    document.getElementById('statTotal').textContent = allAdminSites.length;
+  }
+
+  function filterAdminSites() {
+    const search = (document.getElementById('adminSearch').value || '').toLowerCase().trim();
+    const cat = document.getElementById('adminCatFilter').value;
+    filteredSites = allAdminSites.filter(s => {
+      const matchCat = !cat || s.category === cat;
+      const matchSearch = !search || (s.name||'').toLowerCase().includes(search) || (s.url||'').toLowerCase().includes(search) || (s.description||'').toLowerCase().includes(search);
+      return matchCat && matchSearch;
+    });
+    renderAdminTable();
+  }
+
+  function renderAdminTable() {
+    const tbody = document.getElementById('sitesTableBody');
+    if (!filteredSites.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">Nenhum site encontrado</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filteredSites.map(site => {
+      const catCls = `cat-${site.category}`;
+      return `
+        <tr>
+          <td>
+            ${site.thumbnail
+              ? `<img class="thumb-preview" src="${escHtml(site.thumbnail)}" alt="" onerror="this.style.opacity=0.3">`
+              : `<div class="thumb-preview" style="display:inline-flex;align-items:center;justify-content:center;font-size:20px">${getCatEmoji(site.category)}</div>`}
+          </td>
+          <td>
+            <div style="font-weight:600">${escHtml(site.name)}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml((site.description||'').substring(0,60))}${(site.description||'').length > 60 ? '...' : ''}</div>
+          </td>
+          <td><a href="${escHtml(site.url)}" target="_blank" rel="noopener" style="color:var(--accent-cyan);font-size:12px" class="url-cell" title="${escHtml(site.url)}">${escHtml(site.url.substring(0,40))}${site.url.length > 40 ? '...' : ''}</a></td>
+          <td><span class="cat-badge ${catCls}">${catLabels[site.category]||site.category}</span></td>
+          <td>
+            <div class="flex gap-2">
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="editSite('${site.id}')" title="Editar">✏️</button>
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteSite('${site.id}','${escHtml(site.name)}')" title="Deletar">🗑️</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function editSite(id) {
+    const site = allAdminSites.find(s => s.id === id);
+    if (!site) return;
+    document.getElementById('editId').value = site.id;
+    document.getElementById('siteName').value = site.name || '';
+    document.getElementById('siteUrl').value = site.url || '';
+    document.getElementById('siteCat').value = site.category || '';
+    document.getElementById('siteThumbnail').value = site.thumbnail || '';
+    document.getElementById('siteDesc').value = site.description || '';
+    document.getElementById('formTitle').textContent = '✏️ Editar Site';
+    document.getElementById('submitBtn').textContent = '💾 Atualizar Site';
+    document.getElementById('formStatus').style.display = 'none';
+    switchAdminTab('add');
+  }
+
+  function resetForm() {
+    document.getElementById('siteForm').reset();
+    document.getElementById('editId').value = '';
+    document.getElementById('formTitle').textContent = '➕ Adicionar Novo Site';
+    document.getElementById('submitBtn').textContent = '✅ Salvar Site';
+    document.getElementById('formStatus').style.display = 'none';
+  }
+
+  async function submitSite(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const statusEl = document.getElementById('formStatus');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+
+    const editId = document.getElementById('editId').value;
+    const payload = {
+      name: document.getElementById('siteName').value.trim(),
+      url: document.getElementById('siteUrl').value.trim(),
+      category: document.getElementById('siteCat').value,
+      thumbnail: document.getElementById('siteThumbnail').value.trim() || null,
+      description: document.getElementById('siteDesc').value.trim() || null,
+    };
+
+    try {
+      let result;
+      if (editId) {
+        result = await sb.from('sites').update(payload).eq('id', editId);
+      } else {
+        result = await sb.from('sites').insert([payload]);
+      }
+      if (result.error) throw result.error;
+
+      statusEl.className = 'status-bar success';
+      statusEl.style.display = 'flex';
+      statusEl.innerHTML = `<span>✅</span><span>Site ${editId ? 'atualizado' : 'adicionado'} com sucesso!</span>`;
+      toast(editId ? 'Site atualizado!' : 'Site adicionado!', 'success');
+      resetForm();
+      await loadAdminSites();
+      setTimeout(() => switchAdminTab('sites'), 1000);
+    } catch(err) {
+      statusEl.className = 'status-bar error';
+      statusEl.style.display = 'flex';
+      statusEl.innerHTML = `<span>❌</span><span>Erro: ${escHtml(err.message)}</span>`;
+      toast('Erro ao salvar: ' + err.message, 'error');
+      if (err.code === '42P01') document.getElementById('dbSetupCard').style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = editId ? '💾 Atualizar Site' : '✅ Salvar Site';
+  }
+
+  function deleteSite(id, name) {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmText').textContent = `Tem certeza que deseja deletar "${name}"?`;
+    modal.classList.add('open');
+    document.getElementById('confirmYes').onclick = async function() {
+      modal.classList.remove('open');
+      try {
+        const { error } = await sb.from('sites').delete().eq('id', id);
+        if (error) throw error;
+        toast('Site deletado!', 'success');
+        await loadAdminSites();
+      } catch(e) {
+        toast('Erro ao deletar: ' + e.message, 'error');
+      }
+    };
+  }
+
+  document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  function getCatEmoji(cat) { return { filmes: '🎬', otaku: '⛩️', ia: '🤖', outros: '📦' }[cat] || '🌐'; }
+  function escHtml(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // Real-time
+  try {
+    sb.channel('admin-sites')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sites' }, () => loadAdminSites())
+      .subscribe();
+  } catch(e) {}
+
+  loadAdminSites();
+</script>
+</body>
+</html>

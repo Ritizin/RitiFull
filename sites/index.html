@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RitiFull — Sites</title>
+  <meta name="description" content="Diretório de sites e aplicativos no RitiFull.">
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .sites-tabs { margin-bottom: 28px; }
+    .sites-tab-content { display: none; }
+    .sites-tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+    /* Site card */
+    .site-card {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+      transition: var(--transition); display: flex; flex-direction: column;
+      text-decoration: none; color: inherit;
+    }
+    .site-card:hover { transform: translateY(-6px); border-color: var(--border-accent); box-shadow: 0 12px 40px rgba(0,0,0,0.35), var(--glow-purple); }
+    .site-thumb {
+      width: 100%; height: 160px; object-fit: cover;
+      background: linear-gradient(135deg, var(--bg-3), var(--bg-4));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 52px; color: var(--text-muted);
+      position: relative; overflow: hidden; flex-shrink: 0;
+    }
+    .site-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .site-thumb-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 50%, rgba(17,17,24,0.8));
+    }
+    .site-body { padding: 18px; flex: 1; display: flex; flex-direction: column; }
+    .site-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .site-desc { font-size: 13px; color: var(--text-secondary); flex: 1; line-height: 1.5; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .site-footer { display: flex; align-items: center; justify-content: space-between; }
+    .site-open-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      color: white; font-size: 12px; font-weight: 700;
+      text-decoration: none; transition: var(--transition);
+    }
+    .site-open-btn:hover { transform: translateY(-1px); box-shadow: var(--glow-purple); }
+    /* Search */
+    .search-bar { position: relative; max-width: 400px; }
+    .search-bar .input { padding-left: 42px; }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; }
+    /* Empty state */
+    .sites-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .sites-empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.4; }
+    /* Grid */
+    .sites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+    /* Loading skeleton */
+    .site-card-skeleton { border-radius: var(--radius-lg); overflow: hidden; }
+    .skeleton-thumb { height: 160px; }
+    .skeleton-body { padding: 18px; }
+    .skeleton-line { height: 16px; margin-bottom: 10px; }
+    .skeleton-line.short { width: 60%; }
+    .skeleton-line.medium { width: 80%; }
+    /* Category badge on card */
+    .cat-badge {
+      position: absolute; top: 10px; right: 10px;
+      padding: 4px 10px; border-radius: var(--radius-full);
+      font-size: 10px; font-weight: 800; text-transform: uppercase;
+      backdrop-filter: blur(8px); letter-spacing: 0.5px;
+    }
+    .cat-filmes { background: rgba(236,72,153,0.3); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.5); }
+    .cat-otaku { background: rgba(245,158,11,0.3); color: #fde68a; border: 1px solid rgba(245,158,11,0.5); }
+    .cat-ia { background: rgba(6,182,212,0.3); color: #a5f3fc; border: 1px solid rgba(6,182,212,0.5); }
+    /* Tab indicator */
+    .tab-count { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(124,58,237,0.3); font-size: 11px; font-weight: 700; margin-left: 6px; }
+    /* Stats bar */
+    .sites-stats { display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-pill { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--radius-full); font-size: 13px; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-icon">⚡</div><span class="sidebar-logo-text">RitiFull</span></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <a href="../home/" class="nav-item"><span class="nav-item-icon">🏠</span><span>Home</span></a>
+      <a href="../email/" class="nav-item"><span class="nav-item-icon">📧</span><span>Email Temporário</span></a>
+      <a href="../converter/" class="nav-item"><span class="nav-item-icon">🔄</span><span>Conversor</span></a>
+      <a href="../ia/" class="nav-item"><span class="nav-item-icon">🤖</span><span>IA</span></a>
+      <a href="../sites/" class="nav-item active"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
+      <div class="nav-section-label">Administração</div>
+      <a href="../admin/" class="nav-item"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-badge" onclick="logout()">
+        <div class="user-avatar" id="userAvatar">R</div>
+        <div class="user-info"><div class="user-name" id="userName">Ritizin</div><div class="user-role">Administrador</div></div>
+        <span style="color:var(--text-muted);font-size:18px">↩</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <header class="page-header">
+      <div class="flex items-center gap-3">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1 class="page-title">🌐 Sites & Apps</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input class="input" type="text" id="searchInput" placeholder="Buscar sites..." oninput="filterSites()">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadSites()" title="Recarregar">🔄</button>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <!-- Stats -->
+      <div class="sites-stats" id="sitesStats">
+        <div class="stat-pill">🎬 <span id="countFilmes">0</span> Filmes & Séries</div>
+        <div class="stat-pill">⛩️ <span id="countOtaku">0</span> Otaku</div>
+        <div class="stat-pill">🤖 <span id="countIA">0</span> IA</div>
+        <div class="stat-pill">📦 <span id="countTotal">0</span> Total</div>
+      </div>
+
+      <!-- TABS -->
+      <div class="sites-tabs">
+        <div class="tabs" style="flex-wrap:wrap;width:100%">
+          <button class="tab active" onclick="switchSitesTab('all')" id="stab-all">🌐 Todos</button>
+          <button class="tab" onclick="switchSitesTab('filmes')" id="stab-filmes">🎬 Filmes &amp; Séries <span class="tab-count" id="cnt-filmes">0</span></button>
+          <button class="tab" onclick="switchSitesTab('otaku')" id="stab-otaku">⛩️ Otaku <span class="tab-count" id="cnt-otaku">0</span></button>
+          <button class="tab" onclick="switchSitesTab('ia')" id="stab-ia">🤖 IA <span class="tab-count" id="cnt-ia">0</span></button>
+        </div>
+      </div>
+
+      <div id="sitesContainer">
+        <!-- Loading -->
+        <div class="sites-grid" id="loadingGrid">
+          ${Array(6).fill(`
+            <div class="site-card-skeleton">
+              <div class="skeleton skeleton-thumb"></div>
+              <div class="skeleton-body">
+                <div class="skeleton skeleton-line medium"></div>
+                <div class="skeleton skeleton-line" style="height:12px"></div>
+                <div class="skeleton skeleton-line" style="height:12px;width:90%"></div>
+                <div class="skeleton skeleton-line short" style="height:12px"></div>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div class="sites-grid" id="sitesGrid" style="display:none"></div>
+        <div class="sites-empty" id="sitesEmpty" style="display:none">
+          <div class="sites-empty-icon">🔍</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:8px">Nenhum site encontrado</div>
+          <div style="font-size:14px">Tente outra busca ou peça ao admin para adicionar sites.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // Auth
+  const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
+  if (!session || (Date.now() - session.ts > 24*60*60*1000)) window.location.href = '../';
+  else { document.getElementById('userName').textContent = session.user; document.getElementById('userAvatar').textContent = session.user[0].toUpperCase(); }
+  function logout() { if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; } }
+
+  // Supabase
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://opyeesltjnwzqokjdruu.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9weWVlc2x0am53enFva2pkcnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTkzNTcsImV4cCI6MjA5OTA5NTM1N30.Nl9S1qj__pHN1JfmedEatX2e-BRNmE7iOu0OravwSHc'
+  );
+
+  let allSites = [];
+  let currentTab = 'all';
+  let searchTerm = '';
+
+  const catEmoji = { filmes: '🎬', otaku: '⛩️', ia: '🤖', outros: '📦' };
+  const catClass = { filmes: 'cat-filmes', otaku: 'cat-otaku', ia: 'cat-ia', outros: 'badge-purple' };
+  const catLabel = { filmes: 'Filmes & Séries', otaku: 'Otaku', ia: 'IA', outros: 'Outros' };
+
+  async function loadSites() {
+    document.getElementById('loadingGrid').style.display = 'grid';
+    document.getElementById('sitesGrid').style.display = 'none';
+    document.getElementById('sitesEmpty').style.display = 'none';
+
+    try {
+      const { data, error } = await sb.from('sites').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      allSites = data || [];
+    } catch(e) {
+      // Demo data if Supabase not set up yet
+      allSites = [
+        { id: 1, name: 'Netflix', description: 'Streaming de filmes e séries com conteúdo original exclusivo.', url: 'https://netflix.com', category: 'filmes', thumbnail: '' },
+        { id: 2, name: 'Crunchyroll', description: 'Plataforma líder em streaming de anime, mangá e cultura japonesa.', url: 'https://crunchyroll.com', category: 'otaku', thumbnail: '' },
+        { id: 3, name: 'ChatGPT', description: 'IA conversacional da OpenAI. Responde perguntas e auxilia em tarefas.', url: 'https://chat.openai.com', category: 'ia', thumbnail: '' },
+        { id: 4, name: 'Disney+', description: 'Streaming com filmes Disney, Marvel, Star Wars e National Geographic.', url: 'https://disneyplus.com', category: 'filmes', thumbnail: '' },
+        { id: 5, name: 'MyAnimeList', description: 'Base de dados e comunidade de fãs de anime e mangá.', url: 'https://myanimelist.net', category: 'otaku', thumbnail: '' },
+        { id: 6, name: 'Google Gemini', description: 'IA multimodal do Google com capacidades avançadas de raciocínio.', url: 'https://gemini.google.com', category: 'ia', thumbnail: '' },
+        { id: 7, name: 'Prime Video', description: 'Amazon Prime Video com filmes, séries e conteúdo Amazon Original.', url: 'https://primevideo.com', category: 'filmes', thumbnail: '' },
+        { id: 8, name: 'Funimation', description: 'Plataforma de streaming de anime dublado e legendado.', url: 'https://funimation.com', category: 'otaku', thumbnail: '' },
+        { id: 9, name: 'Claude AI', description: 'Assistente IA da Anthropic, focado em raciocínio e segurança.', url: 'https://claude.ai', category: 'ia', thumbnail: '' },
+      ];
+    }
+
+    updateCounts();
+    renderSites();
+    document.getElementById('loadingGrid').style.display = 'none';
+  }
+
+  function updateCounts() {
+    const cats = { filmes: 0, otaku: 0, ia: 0 };
+    allSites.forEach(s => { if (cats.hasOwnProperty(s.category)) cats[s.category]++; });
+    document.getElementById('cnt-filmes').textContent = cats.filmes;
+    document.getElementById('cnt-otaku').textContent = cats.otaku;
+    document.getElementById('cnt-ia').textContent = cats.ia;
+    document.getElementById('countFilmes').textContent = cats.filmes;
+    document.getElementById('countOtaku').textContent = cats.otaku;
+    document.getElementById('countIA').textContent = cats.ia;
+    document.getElementById('countTotal').textContent = allSites.length;
+  }
+
+  function filterSites() {
+    searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    renderSites();
+  }
+
+  function renderSites() {
+    let sites = allSites;
+    if (currentTab !== 'all') sites = sites.filter(s => s.category === currentTab);
+    if (searchTerm) sites = sites.filter(s =>
+      (s.name||'').toLowerCase().includes(searchTerm) ||
+      (s.description||'').toLowerCase().includes(searchTerm) ||
+      (s.url||'').toLowerCase().includes(searchTerm)
+    );
+
+    const grid = document.getElementById('sitesGrid');
+    const empty = document.getElementById('sitesEmpty');
+
+    if (!sites.length) {
+      grid.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+
+    grid.style.display = 'grid';
+    empty.style.display = 'none';
+    grid.innerHTML = sites.map(site => renderCard(site)).join('');
+  }
+
+  function renderCard(site) {
+    const emoji = catEmoji[site.category] || '🌐';
+    const catCls = catClass[site.category] || 'badge-purple';
+    const catLbl = catLabel[site.category] || site.category;
+    const domain = (() => { try { return new URL(site.url).hostname; } catch { return site.url; } })();
+    const thumb = site.thumbnail
+      ? `<img src="${escHtml(site.thumbnail)}" alt="${escHtml(site.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      : '';
+
+    return `
+      <div class="site-card">
+        <div class="site-thumb" style="cursor:pointer" onclick="openSite('${escHtml(site.url)}')">
+          ${thumb}
+          <span style="${thumb ? 'display:none' : ''}">${emoji}</span>
+          <div class="site-thumb-overlay"></div>
+          <span class="cat-badge ${catCls}">${catLbl}</span>
+        </div>
+        <div class="site-body">
+          <div class="site-name">${escHtml(site.name)}</div>
+          <div class="site-desc">${escHtml(site.description || 'Sem descrição')}</div>
+          <div class="site-footer">
+            <span style="font-size:11px;color:var(--text-muted)">🔗 ${escHtml(domain)}</span>
+            <a class="site-open-btn" href="${escHtml(site.url)}" target="_blank" rel="noopener">Abrir ↗</a>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function openSite(url) {
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function switchSitesTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('[id^="stab-"]').forEach(t => t.classList.remove('active'));
+    document.getElementById('stab-' + tab).classList.add('active');
+    renderSites();
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Real-time subscription
+  function subscribeRealtime() {
+    try {
+      sb.channel('sites-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sites' }, () => loadSites())
+        .subscribe();
+    } catch(e) {}
+  }
+
+  loadSites();
+  subscribeRealtime();
+</script>
+</body>
+</html>
