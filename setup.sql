@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS public.sites (
   name TEXT NOT NULL,
   description TEXT,
   url TEXT NOT NULL,
-  category TEXT NOT NULL DEFAULT 'outros'
-    CHECK (category IN ('filmes', 'otaku', 'ia', 'outros')),
+  category TEXT NOT NULL DEFAULT 'outros', -- livre: o admin pode criar qualquer categoria nova
   thumbnail TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

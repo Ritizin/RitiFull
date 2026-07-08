@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RitiFull — Home</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
+  <link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
   <meta name="description" content="Dashboard RitiFull — Acesse todas as ferramentas.">
   <link rel="stylesheet" href="../assets/css/global.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .hero-section {
       padding: 48px 0 32px;
@@ -92,6 +96,18 @@
       text-decoration: none;
     }
     .quick-link:hover { background: var(--glass-hover); color: var(--text-primary); border-color: var(--border-accent); }
+    /* Site directory cards */
+    .site-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: var(--transition); display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+    .site-card:hover { transform: translateY(-6px); border-color: var(--border-accent); box-shadow: 0 12px 40px rgba(0,0,0,0.35), 0 0 30px rgba(124,58,237,0.15); }
+    .site-thumb { width: 100%; height: 140px; object-fit: cover; background: linear-gradient(135deg, var(--bg-3), var(--bg-4)); display: flex; align-items: center; justify-content: center; font-size: 44px; color: var(--text-muted); position: relative; overflow: hidden; flex-shrink: 0; cursor: pointer; }
+    .site-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .site-body { padding: 16px; flex: 1; display: flex; flex-direction: column; }
+    .site-name { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .site-desc { font-size: 12px; color: var(--text-secondary); flex: 1; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .site-footer { display: flex; align-items: center; justify-content: space-between; }
+    .site-open-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--radius-sm); background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); color: white; font-size: 11px; font-weight: 700; text-decoration: none; transition: var(--transition); }
+    .site-open-btn:hover { transform: translateY(-1px); }
+    .site-cat-badge { position: absolute; top: 8px; right: 8px; padding: 3px 9px; border-radius: var(--radius-full); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(124,58,237,0.3); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.5); backdrop-filter: blur(8px); }
   </style>
 </head>
 <body>
@@ -99,7 +115,7 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">⚡</div>
+        <div class="sidebar-logo-icon"><img src="../assets/img/star-white.svg" alt="" style="width:22px;height:22px"></div>
         <span class="sidebar-logo-text">RitiFull</span>
       </div>
       <nav class="sidebar-nav">
@@ -173,7 +189,7 @@
               <a href="../sites/" class="quick-link">🌐 Sites</a>
             </div>
           </div>
-          <div style="font-size:80px;opacity:0.15;flex-shrink:0">⚡</div>
+          <div style="font-size:80px;opacity:0.15;flex-shrink:0">⭐</div>
         </div>
 
         <!-- Feature Cards -->
@@ -212,14 +228,38 @@
             <span class="card-arrow">→</span>
           </a>
 
-          <a href="../admin/" class="feature-card"
+          <a href="../admin/" class="feature-card" id="adminFeatureCard"
              style="--card-from:rgba(245,158,11,0.08);--card-border:rgba(245,158,11,0.4);--card-glow:rgba(245,158,11,0.2);--card-icon-bg:rgba(245,158,11,0.15);--card-icon-border:rgba(245,158,11,0.3)">
             <div class="card-icon">⚙️</div>
             <div class="card-title">Painel Admin</div>
-            <div class="card-desc">Gerencie sites, categorias e conteúdo. Sincronizado em tempo real com o Supabase.</div>
+            <div class="card-desc">Adicione novos sites, apps e categorias ao diretório.</div>
             <span class="card-arrow">→</span>
           </a>
 
+        </div>
+
+        <!-- SITE DIRECTORY (o que estava no admin agora aparece aqui pra todo mundo) -->
+        <div class="section-title" style="margin-top:48px">Diretório de Sites & Apps</div>
+        <div class="sites-stats" id="sitesStats" style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap">
+          <div class="stat-pill" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-full);font-size:13px;font-weight:600">📦 <span id="countTotal">0</span> Total</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <div class="tabs" id="catTabs" style="flex-wrap:wrap">
+            <button class="tab active" onclick="switchCatTab('all')" id="ctab-all">🌐 Todos</button>
+          </div>
+          <div class="search-bar" style="position:relative;max-width:300px">
+            <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+            <input class="input" style="padding-left:42px" type="text" id="searchInput" placeholder="Buscar sites..." oninput="filterHomeSites()">
+          </div>
+        </div>
+
+        <div id="sitesContainer">
+          <div class="grid grid-2" id="sitesGrid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px"></div>
+          <div id="sitesEmpty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted)">
+            <div style="font-size:56px;margin-bottom:16px;opacity:0.4">🔍</div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:8px">Nenhum site encontrado</div>
+            <div style="font-size:14px">Tente outra busca ou peça ao admin para adicionar sites.</div>
+          </div>
         </div>
       </div>
     </main>
@@ -228,14 +268,21 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
-    // Auth check
+    // Home é público — login só é necessário para acessar o /admin/
     const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
-    if (!session || (Date.now() - session.ts > 24*60*60*1000)) {
-      window.location.href = '../';
-    } else {
+    const isAdmin = !!(session && session.role === 'admin' && (Date.now() - session.ts < 24*60*60*1000));
+    if (isAdmin) {
       document.getElementById('welcomeName').textContent = session.user;
       document.getElementById('userName').textContent = session.user;
       document.getElementById('userAvatar').textContent = session.user[0].toUpperCase();
+    } else {
+      document.getElementById('welcomeName').textContent = 'visitante';
+      document.getElementById('userName').textContent = 'Visitante';
+      document.getElementById('userAvatar').textContent = 'V';
+      document.querySelector('.user-role').textContent = 'Visitante';
+      document.getElementById('nav-admin').remove();
+      document.querySelectorAll('.nav-section-label')[1]?.remove();
+      document.getElementById('adminFeatureCard').remove();
     }
 
     // Clock
@@ -257,6 +304,90 @@
         window.location.href = '../';
       }
     }
+
+    // === SITE DIRECTORY (dados vêm do que o admin cadastra em /admin/) ===
+    const { createClient } = supabase;
+    const sb = createClient(
+      'https://opyeesltjnwzqokjdruu.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9weWVlc2x0am53enFva2pkcnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTkzNTcsImV4cCI6MjA5OTA5NTM1N30.Nl9S1qj__pHN1JfmedEatX2e-BRNmE7iOu0OravwSHc'
+    );
+
+    let allHomeSites = [];
+    let homeCatTab = 'all';
+    let homeSearch = '';
+
+    async function loadHomeSites() {
+      try {
+        const { data, error } = await sb.from('sites').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        allHomeSites = data || [];
+      } catch (e) {
+        allHomeSites = [];
+      }
+      buildCatTabs();
+      renderHomeSites();
+    }
+
+    function buildCatTabs() {
+      const cats = [...new Set(allHomeSites.map(s => s.category).filter(Boolean))];
+      document.getElementById('countTotal').textContent = allHomeSites.length;
+      const wrap = document.getElementById('catTabs');
+      wrap.innerHTML = `<button class="tab ${homeCatTab==='all'?'active':''}" onclick="switchCatTab('all')">🌐 Todos</button>` +
+        cats.map(c => `<button class="tab ${homeCatTab===c?'active':''}" onclick="switchCatTab('${escHome(c)}')">${escHome(catEmoji(c))} ${escHome(catLabel(c))}</button>`).join('');
+    }
+
+    function catEmoji(c) { return { filmes: '🎬', otaku: '⛩️', ia: '🤖', outros: '📦' }[c] || '🌐'; }
+    function catLabel(c) { return { filmes: 'Filmes & Séries', otaku: 'Otaku', ia: 'IA', outros: 'Outros' }[c] || (c ? c.charAt(0).toUpperCase() + c.slice(1) : 'Outros'); }
+
+    function switchCatTab(cat) { homeCatTab = cat; buildCatTabs(); renderHomeSites(); }
+    function filterHomeSites() { homeSearch = document.getElementById('searchInput').value.toLowerCase().trim(); renderHomeSites(); }
+
+    function renderHomeSites() {
+      let sites = allHomeSites;
+      if (homeCatTab !== 'all') sites = sites.filter(s => s.category === homeCatTab);
+      if (homeSearch) sites = sites.filter(s =>
+        (s.name||'').toLowerCase().includes(homeSearch) ||
+        (s.description||'').toLowerCase().includes(homeSearch) ||
+        (s.url||'').toLowerCase().includes(homeSearch));
+
+      const grid = document.getElementById('sitesGrid');
+      const empty = document.getElementById('sitesEmpty');
+      if (!sites.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+      grid.style.display = 'grid'; empty.style.display = 'none';
+      grid.innerHTML = sites.map(renderSiteCard).join('');
+    }
+
+    function renderSiteCard(site) {
+      const thumb = site.thumbnail
+        ? `<img src="${escHome(site.thumbnail)}" alt="${escHome(site.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : '';
+      return `
+        <div class="site-card">
+          <div class="site-thumb" onclick="window.open('${escHome(site.url)}','_blank','noopener')">
+            ${thumb}
+            <span style="${thumb ? 'display:none' : ''}">${catEmoji(site.category)}</span>
+            <span class="site-cat-badge">${escHome(catLabel(site.category))}</span>
+          </div>
+          <div class="site-body">
+            <div class="site-name">${escHome(site.name)}</div>
+            <div class="site-desc">${escHome(site.description || 'Sem descrição')}</div>
+            <div class="site-footer">
+              <span></span>
+              <a class="site-open-btn" href="${escHome(site.url)}" target="_blank" rel="noopener">Abrir ↗</a>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function escHome(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    try {
+      sb.channel('home-sites-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sites' }, () => loadHomeSites())
+        .subscribe();
+    } catch(e) {}
+
+    loadHomeSites();
   </script>
 </body>
 </html>

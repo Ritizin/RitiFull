@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RitiFull — Conversor</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
+  <link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
   <meta name="description" content="Converta MP4, imagens e muito mais no RitiFull.">
   <link rel="stylesheet" href="../assets/css/global.css">
   <style>
@@ -97,7 +100,7 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">⚡</div>
+      <div class="sidebar-logo-icon"><img src="../assets/img/star-white.svg" alt="" style="width:22px;height:22px"></div>
       <span class="sidebar-logo-text">RitiFull</span>
     </div>
     <nav class="sidebar-nav">
@@ -108,7 +111,7 @@
       <a href="../ia/" class="nav-item"><span class="nav-item-icon">🤖</span><span>IA</span></a>
       <a href="../sites/" class="nav-item"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
       <div class="nav-section-label">Administração</div>
-      <a href="../admin/" class="nav-item"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+      <a href="../admin/" class="nav-item" id="nav-admin"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-badge" onclick="logout()">
@@ -268,10 +271,19 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-  // Auth
+  // Página pública — login só é exigido em /admin/
   const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
-  if (!session || (Date.now() - session.ts > 24*60*60*1000)) window.location.href = '../';
-  else { document.getElementById('userName').textContent = session.user; document.getElementById('userAvatar').textContent = session.user[0].toUpperCase(); }
+  const isAdmin = !!(session && session.role === 'admin' && (Date.now() - session.ts < 24*60*60*1000));
+  if (isAdmin) {
+    document.getElementById('userName').textContent = session.user;
+    document.getElementById('userAvatar').textContent = session.user[0].toUpperCase();
+  } else {
+    document.getElementById('userName').textContent = 'Visitante';
+    document.getElementById('userAvatar').textContent = 'V';
+    const roleEl = document.querySelector('.user-role'); if (roleEl) roleEl.textContent = 'Visitante';
+    const navAdmin = document.getElementById('nav-admin'); if (navAdmin) navAdmin.remove();
+    const labels = document.querySelectorAll('.nav-section-label'); if (labels[1]) labels[1].remove();
+  }
 
   function logout() { if (confirm('Deseja sair?')) { localStorage.removeItem('ritifull_session'); window.location.href = '../'; } }
 

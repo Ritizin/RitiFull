@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RitiFull — Email Temporário</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="../assets/img/favicon.ico">
+  <link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
   <meta name="description" content="Gere emails temporários instantaneamente no RitiFull.">
   <link rel="stylesheet" href="../assets/css/global.css">
   <style>
@@ -101,7 +104,7 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">⚡</div>
+      <div class="sidebar-logo-icon"><img src="../assets/img/star-white.svg" alt="" style="width:22px;height:22px"></div>
       <span class="sidebar-logo-text">RitiFull</span>
     </div>
     <nav class="sidebar-nav">
@@ -112,7 +115,7 @@
       <a href="../ia/" class="nav-item"><span class="nav-item-icon">🤖</span><span>IA</span></a>
       <a href="../sites/" class="nav-item"><span class="nav-item-icon">🌐</span><span>Sites</span></a>
       <div class="nav-section-label">Administração</div>
-      <a href="../admin/" class="nav-item"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
+      <a href="../admin/" class="nav-item" id="nav-admin"><span class="nav-item-icon">⚙️</span><span>Admin</span></a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-badge" onclick="logout()">
@@ -173,10 +176,11 @@
             <div class="domain-chips" id="domainChips">
               <div class="domain-chip active" data-domain="auto">🎲 Automático</div>
               <div class="domain-chip" data-domain="brightgeta.com">@brightgeta.com</div>
-              <div class="domain-chip" data-domain="FusionInbox.com">@FusionInbox.com</div>
+              <div class="domain-chip" data-domain="fusioninbox.com">@fusioninbox.com</div>
+              <div class="domain-chip" data-domain="skola.edu.com">@skola.edu.com</div>
             </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
-              ℹ️ Os domínios acima são visuais. O email funcional é gerado via mail.tm.
+            <div style="font-size:11px;color:var(--text-muted);margin-top:8px" id="apiStatusNote">
+              ⭐ API própria (RitiMail) — sem depender de serviços de terceiros.
             </div>
           </div>
 
@@ -229,19 +233,33 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-  // Auth check
+  // Sessão (opcional — home/email são públicos, só personaliza se houver admin logado)
   const session = JSON.parse(localStorage.getItem('ritifull_session') || 'null');
-  if (!session || (Date.now() - session.ts > 24*60*60*1000)) window.location.href = '../';
-  else {
+  const isAdmin = !!(session && session.role === 'admin' && (Date.now() - session.ts < 24*60*60*1000));
+  if (isAdmin) {
     document.getElementById('userName').textContent = session.user;
     document.getElementById('userAvatar').textContent = session.user[0].toUpperCase();
+  } else {
+    document.querySelector('.nav-section-label:last-of-type')?.remove();
+    document.getElementById('nav-admin')?.remove();
+    document.getElementById('userName').textContent = 'Visitante';
+    document.getElementById('userAvatar').textContent = 'V';
+    document.querySelector('.user-role').textContent = 'Visitante';
   }
 
-  const MAIL_API = 'https://api.mail.tm';
-  let currentEmail = null, currentToken = null, currentPassword = null;
+  // === RitiMail: API própria (Cloudflare Worker) ===
+  // Depois de fazer o deploy do worker (veja mail-worker/SETUP.md), cole a URL aqui:
+  const MAIL_API_BASE = ''; // ex: 'https://ritimail.seu-usuario.workers.dev'
+
+  let currentEmail = null, currentToken = null;
   let autoRefreshInterval = null, countdownInterval = null, countdownValue = 30;
   let selectedDomain = 'auto';
   let availableDomains = [];
+
+  if (!MAIL_API_BASE) {
+    document.getElementById('apiStatusNote').innerHTML =
+      '⚠️ API própria ainda não configurada. Veja <code>mail-worker/SETUP.md</code> para colocar sua URL do Worker em <code>MAIL_API_BASE</code>.';
+  }
 
   // Domain chips
   document.querySelectorAll('.domain-chip').forEach(chip => {
@@ -262,32 +280,29 @@
     setTimeout(() => el.remove(), 3100);
   }
 
-  // Fetch domains from mail.tm
+  // Domínios disponíveis (busca no worker se configurado, senão usa a lista fixa)
   async function fetchDomains() {
+    if (!MAIL_API_BASE) { availableDomains = ['brightgeta.com','fusioninbox.com','skola.edu.com']; return availableDomains; }
     try {
-      const res = await fetch(`${MAIL_API}/domains?page=1`);
+      const res = await fetch(`${MAIL_API_BASE}/api/domains`);
       const data = await res.json();
-      availableDomains = (data['hydra:member'] || []).filter(d => d.isActive).map(d => d.domain);
+      availableDomains = data.domains || ['brightgeta.com','fusioninbox.com','skola.edu.com'];
       return availableDomains;
     } catch(e) {
-      return ['mail.tm'];
+      availableDomains = ['brightgeta.com','fusioninbox.com','skola.edu.com'];
+      return availableDomains;
     }
   }
 
-  // Generate random username
-  function randomUsername() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz';
-    const digits = '0123456789';
-    const all = chars + digits;
-    let name = chars[Math.floor(Math.random() * chars.length)];
-    for (let i = 0; i < 8; i++) name += all[Math.floor(Math.random() * all.length)];
-    return name;
-  }
-
-  // Generate email
+  // Generate email — via RitiMail (API própria)
   async function generateEmail() {
     const btn = document.getElementById('generateBtn');
     const display = document.getElementById('emailDisplay');
+
+    if (!MAIL_API_BASE) {
+      toast('Configure MAIL_API_BASE (veja mail-worker/SETUP.md) para gerar emails reais.', 'warning');
+      return;
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Gerando...';
@@ -295,44 +310,20 @@
     display.textContent = 'Gerando email...';
 
     try {
-      const domains = availableDomains.length ? availableDomains : await fetchDomains();
-      const domain = domains[Math.floor(Math.random() * domains.length)] || 'mail.tm';
-      const username = randomUsername();
-      const address = `${username}@${domain}`;
-      const password = randomUsername() + 'Aa1!';
-
-      // Create account
-      const createRes = await fetch(`${MAIL_API}/accounts`, {
+      const body = selectedDomain !== 'auto' ? { domain: selectedDomain } : {};
+      const res = await fetch(`${MAIL_API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, password })
+        body: JSON.stringify(body)
       });
+      if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'Erro ao gerar email'); }
+      const data = await res.json();
 
-      if (!createRes.ok) {
-        const err = await createRes.json();
-        throw new Error(err['hydra:description'] || 'Erro ao criar conta');
-      }
-
-      // Get token
-      const tokenRes = await fetch(`${MAIL_API}/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, password })
-      });
-      const tokenData = await tokenRes.json();
-
-      currentEmail = address;
-      currentPassword = password;
-      currentToken = tokenData.token;
-
-      // Determine display email (visual domain)
-      let displayEmail = address;
-      if (selectedDomain !== 'auto') {
-        displayEmail = `${username}@${selectedDomain}`;
-      }
+      currentEmail = data.address;
+      currentToken = data.token;
 
       display.classList.remove('loading');
-      display.textContent = displayEmail;
+      display.textContent = currentEmail;
 
       // Enable buttons
       document.getElementById('refreshBtn').disabled = false;
@@ -341,19 +332,19 @@
       document.getElementById('autoRefreshBar').style.display = 'block';
 
       // Add to history
-      addToHistory({ address: displayEmail, realAddress: address, token: currentToken, password, time: Date.now() });
+      addToHistory({ address: currentEmail, token: currentToken, time: Date.now() });
 
       // Clear inbox
       document.getElementById('inboxContainer').innerHTML = `
         <div class="inbox-empty">
           <div class="inbox-empty-icon">📬</div>
           <div style="font-size:16px;font-weight:600;margin-bottom:8px">Email pronto!</div>
-          <div style="font-size:13px">Aguardando mensagens em <strong>${displayEmail}</strong></div>
+          <div style="font-size:13px">Aguardando mensagens em <strong>${currentEmail}</strong></div>
         </div>`;
       document.getElementById('msgCount').textContent = '0';
 
       startAutoRefresh();
-      toast(`Email gerado: ${displayEmail}`, 'success');
+      toast(`Email gerado: ${currentEmail}`, 'success');
     } catch(e) {
       display.classList.remove('loading');
       display.textContent = 'Erro ao gerar email';
@@ -366,16 +357,17 @@
 
   // Refresh inbox
   async function refreshInbox() {
-    if (!currentToken) return;
+    if (!currentToken || !MAIL_API_BASE) return;
     const icon = document.getElementById('refreshIcon');
     icon.style.animation = 'spin 0.7s linear infinite';
 
     try {
-      const res = await fetch(`${MAIL_API}/messages?page=1`, {
-        headers: { 'Authorization': `Bearer ${currentToken}` }
-      });
+      const res = await fetch(`${MAIL_API_BASE}/api/messages?token=${encodeURIComponent(currentToken)}`);
       const data = await res.json();
-      const messages = data['hydra:member'] || [];
+      const messages = (data.messages || []).map(m => ({
+        id: m.id, from: { address: m.from_addr }, subject: m.subject,
+        intro: (m.text_body || '').slice(0, 100), createdAt: m.created_at, seen: !!m.seen
+      }));
       renderInbox(messages);
       document.getElementById('msgCount').textContent = messages.length;
 
@@ -416,19 +408,16 @@
 
   async function viewMessage(id) {
     try {
-      const res = await fetch(`${MAIL_API}/messages/${id}`, {
-        headers: { 'Authorization': `Bearer ${currentToken}` }
-      });
-      const msg = await res.json();
+      const res = await fetch(`${MAIL_API_BASE}/api/message?token=${encodeURIComponent(currentToken)}&id=${encodeURIComponent(id)}`);
+      const { message: msg } = await res.json();
       document.getElementById('modalSubject').textContent = msg.subject || '(Sem assunto)';
-      document.getElementById('modalFrom').textContent = `De: ${msg.from?.address || '???'} | Para: ${msg.to?.[0]?.address || '???'}`;
-      document.getElementById('modalTime').textContent = formatTime(msg.createdAt);
+      document.getElementById('modalFrom').textContent = `De: ${msg.from_addr || '???'} | Para: ${currentEmail}`;
+      document.getElementById('modalTime').textContent = formatTime(msg.created_at);
       const body = document.getElementById('modalBody');
-      if (msg.html && msg.html.length > 0) {
-        const html = typeof msg.html === 'string' ? msg.html : msg.html.join('');
-        body.innerHTML = html;
+      if (msg.html_body) {
+        body.innerHTML = msg.html_body;
       } else {
-        body.innerHTML = `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(msg.text || '(Sem conteúdo)')}</pre>`;
+        body.innerHTML = `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(msg.text_body || '(Sem conteúdo)')}</pre>`;
       }
       document.getElementById('msgModal').classList.add('open');
       // Refresh to mark as read
